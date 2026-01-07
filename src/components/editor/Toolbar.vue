@@ -4,6 +4,28 @@ import type { Editor } from '@tiptap/vue-3'
 import { useSettingsStore } from '@/stores/settings'
 import FontSelector from './FontSelector.vue'
 import ExportModal from './ExportModal.vue'
+import {
+  Bold,
+  Italic,
+  Underline,
+  Strikethrough,
+  Heading1,
+  Heading2,
+  Heading3,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  IndentDecrease,
+  IndentIncrease,
+  Quote,
+  List,
+  Minus,
+  FileText,
+  Download,
+  SpellCheck,
+  Keyboard,
+  Focus
+} from 'lucide-vue-next'
 
 const props = defineProps<{
   editor: Editor | undefined
@@ -32,7 +54,7 @@ function isActive(name: string, attrs?: object): boolean {
         @click="editor?.chain().focus().toggleBold().run()"
         title="굵게 (Ctrl+B)"
       >
-        <strong>B</strong>
+        <Bold :size="18" />
       </button>
       <button
         class="toolbar-btn"
@@ -40,7 +62,7 @@ function isActive(name: string, attrs?: object): boolean {
         @click="editor?.chain().focus().toggleItalic().run()"
         title="기울임 (Ctrl+I)"
       >
-        <em>I</em>
+        <Italic :size="18" />
       </button>
       <button
         class="toolbar-btn"
@@ -48,7 +70,7 @@ function isActive(name: string, attrs?: object): boolean {
         @click="editor?.chain().focus().toggleUnderline().run()"
         title="밑줄 (Ctrl+U)"
       >
-        <u>U</u>
+        <Underline :size="18" />
       </button>
       <button
         class="toolbar-btn"
@@ -56,7 +78,7 @@ function isActive(name: string, attrs?: object): boolean {
         @click="editor?.chain().focus().toggleStrike().run()"
         title="취소선"
       >
-        <s>S</s>
+        <Strikethrough :size="18" />
       </button>
     </div>
 
@@ -70,7 +92,7 @@ function isActive(name: string, attrs?: object): boolean {
         @click="editor?.chain().focus().toggleHeading({ level: 1 }).run()"
         title="제목 1"
       >
-        H1
+        <Heading1 :size="18" />
       </button>
       <button
         class="toolbar-btn"
@@ -78,7 +100,7 @@ function isActive(name: string, attrs?: object): boolean {
         @click="editor?.chain().focus().toggleHeading({ level: 2 }).run()"
         title="제목 2"
       >
-        H2
+        <Heading2 :size="18" />
       </button>
       <button
         class="toolbar-btn"
@@ -86,7 +108,7 @@ function isActive(name: string, attrs?: object): boolean {
         @click="editor?.chain().focus().toggleHeading({ level: 3 }).run()"
         title="제목 3"
       >
-        H3
+        <Heading3 :size="18" />
       </button>
     </div>
 
@@ -95,43 +117,28 @@ function isActive(name: string, attrs?: object): boolean {
     <div class="toolbar-group">
       <!-- Text Alignment -->
       <button
-        class="toolbar-btn align-btn"
+        class="toolbar-btn"
         :class="{ active: isActive({ textAlign: 'left' }) }"
         @click="editor?.chain().focus().setTextAlign('left').run()"
         title="왼쪽 정렬"
       >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-          <rect x="1" y="2" width="14" height="2"/>
-          <rect x="1" y="6" width="10" height="2"/>
-          <rect x="1" y="10" width="14" height="2"/>
-          <rect x="1" y="14" width="8" height="2"/>
-        </svg>
+        <AlignLeft :size="18" />
       </button>
       <button
-        class="toolbar-btn align-btn"
+        class="toolbar-btn"
         :class="{ active: isActive({ textAlign: 'center' }) }"
         @click="editor?.chain().focus().setTextAlign('center').run()"
         title="가운데 정렬"
       >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-          <rect x="1" y="2" width="14" height="2"/>
-          <rect x="3" y="6" width="10" height="2"/>
-          <rect x="1" y="10" width="14" height="2"/>
-          <rect x="4" y="14" width="8" height="2"/>
-        </svg>
+        <AlignCenter :size="18" />
       </button>
       <button
-        class="toolbar-btn align-btn"
+        class="toolbar-btn"
         :class="{ active: isActive({ textAlign: 'right' }) }"
         @click="editor?.chain().focus().setTextAlign('right').run()"
         title="오른쪽 정렬"
       >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-          <rect x="1" y="2" width="14" height="2"/>
-          <rect x="5" y="6" width="10" height="2"/>
-          <rect x="1" y="10" width="14" height="2"/>
-          <rect x="7" y="14" width="8" height="2"/>
-        </svg>
+        <AlignRight :size="18" />
       </button>
     </div>
 
@@ -144,14 +151,14 @@ function isActive(name: string, attrs?: object): boolean {
         @click="editor?.chain().focus().outdent().run()"
         title="내어쓰기 (Shift+Tab)"
       >
-        ←
+        <IndentDecrease :size="18" />
       </button>
       <button
         class="toolbar-btn"
         @click="editor?.chain().focus().indent().run()"
         title="들여쓰기 (Tab)"
       >
-        →
+        <IndentIncrease :size="18" />
       </button>
     </div>
 
@@ -165,7 +172,7 @@ function isActive(name: string, attrs?: object): boolean {
         @click="editor?.chain().focus().toggleBlockquote().run()"
         title="인용"
       >
-        "
+        <Quote :size="18" />
       </button>
       <button
         class="toolbar-btn"
@@ -173,14 +180,14 @@ function isActive(name: string, attrs?: object): boolean {
         @click="editor?.chain().focus().toggleBulletList().run()"
         title="목록"
       >
-        •
+        <List :size="18" />
       </button>
       <button
         class="toolbar-btn"
         @click="editor?.chain().focus().setHorizontalRule().run()"
         title="구분선"
       >
-        —
+        <Minus :size="18" />
       </button>
     </div>
 
@@ -193,14 +200,14 @@ function isActive(name: string, attrs?: object): boolean {
         @click="emit('toggle-footnotes')"
         title="각주 패널"
       >
-        📝
+        <FileText :size="18" />
       </button>
       <button
         class="toolbar-btn"
         @click="showExportModal = true"
         title="내보내기"
       >
-        📤
+        <Download :size="18" />
       </button>
     </div>
 
@@ -231,7 +238,7 @@ function isActive(name: string, attrs?: object): boolean {
         @click="settingsStore.toggleSpellCheck()"
         title="맞춤법 검사"
       >
-        ✓
+        <SpellCheck :size="18" />
       </button>
       <button
         class="toolbar-btn"
@@ -239,7 +246,7 @@ function isActive(name: string, attrs?: object): boolean {
         @click="settingsStore.toggleTypewriterMode()"
         title="타자기 모드"
       >
-        ⌨️
+        <Keyboard :size="18" />
       </button>
       <button
         class="toolbar-btn"
@@ -247,7 +254,7 @@ function isActive(name: string, attrs?: object): boolean {
         @click="settingsStore.toggleFocusMode()"
         title="집중 모드"
       >
-        🎯
+        <Focus :size="18" />
       </button>
     </div>
   </div>
@@ -289,13 +296,13 @@ function isActive(name: string, attrs?: object): boolean {
 }
 
 .toolbar-btn {
-  padding: 0.375rem 0.625rem;
+  padding: 0.375rem;
   border-radius: 4px;
   font-size: 0.875rem;
   color: var(--text-secondary);
   transition: all 0.15s;
   min-width: 32px;
-  text-align: center;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -311,18 +318,12 @@ function isActive(name: string, attrs?: object): boolean {
   color: white;
 }
 
-.toolbar-btn svg {
-  display: block;
-}
-
 .font-btn {
+  padding: 0.375rem 0.625rem;
   max-width: 150px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.align-btn {
-  padding: 0.375rem 0.5rem;
+  height: auto;
 }
 </style>

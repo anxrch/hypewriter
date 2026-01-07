@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { save } from '@tauri-apps/plugin-dialog'
 import { useProjectStore } from '@/stores/project'
 import { useSettingsStore } from '@/stores/settings'
+import { FileText, FileType, File, X } from 'lucide-vue-next'
 
 const emit = defineEmits<{
   (e: 'close'): void
@@ -165,7 +166,9 @@ async function exportToTxt() {
 }
 
 // 폰트 경로가 있는지 확인
-const hasFontPath = settingsStore.editorFontPath && settingsStore.editorFontPath.length > 0
+const hasFontPath = computed(() => 
+  settingsStore.editorFontPath && settingsStore.editorFontPath.length > 0
+)
 </script>
 
 <template>
@@ -173,7 +176,9 @@ const hasFontPath = settingsStore.editorFontPath && settingsStore.editorFontPath
     <div class="export-modal">
       <div class="modal-header">
         <h2>내보내기</h2>
-        <button class="close-btn" @click="emit('close')">×</button>
+        <button class="close-btn" @click="emit('close')">
+          <X :size="18" />
+        </button>
       </div>
       
       <div class="modal-content">
@@ -187,7 +192,9 @@ const hasFontPath = settingsStore.editorFontPath && settingsStore.editorFontPath
             @click="exportToDocx"
             :disabled="isExporting"
           >
-            <span class="export-icon">📄</span>
+            <span class="export-icon docx">
+              <FileType :size="28" />
+            </span>
             <span class="export-label">
               <strong>Word 문서 (.docx)</strong>
               <small>Microsoft Word에서 편집 가능</small>
@@ -199,7 +206,9 @@ const hasFontPath = settingsStore.editorFontPath && settingsStore.editorFontPath
             @click="exportToPdf"
             :disabled="isExporting"
           >
-            <span class="export-icon">📕</span>
+            <span class="export-icon pdf">
+              <FileText :size="28" />
+            </span>
             <span class="export-label">
               <strong>PDF 문서 (.pdf)</strong>
               <small v-if="hasFontPath">폰트: {{ settingsStore.editorFont }}</small>
@@ -212,7 +221,9 @@ const hasFontPath = settingsStore.editorFontPath && settingsStore.editorFontPath
             @click="exportToTxt"
             :disabled="isExporting"
           >
-            <span class="export-icon">📝</span>
+            <span class="export-icon txt">
+              <File :size="28" />
+            </span>
             <span class="export-label">
               <strong>텍스트 파일 (.txt)</strong>
               <small>순수 텍스트로 저장</small>
@@ -272,7 +283,9 @@ const hasFontPath = settingsStore.editorFontPath && settingsStore.editorFontPath
   width: 32px;
   height: 32px;
   border-radius: 6px;
-  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: var(--text-muted);
   transition: all 0.15s;
 }
@@ -320,7 +333,28 @@ const hasFontPath = settingsStore.editorFontPath && settingsStore.editorFontPath
 }
 
 .export-icon {
-  font-size: 2rem;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.export-icon.docx {
+  background: #2b579a;
+  color: white;
+}
+
+.export-icon.pdf {
+  background: #e53935;
+  color: white;
+}
+
+.export-icon.txt {
+  background: #607d8b;
+  color: white;
 }
 
 .export-label {

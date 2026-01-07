@@ -2,6 +2,15 @@
 import { ref } from 'vue'
 import { useProjectStore } from '@/stores/project'
 import { useSettingsStore } from '@/stores/settings'
+import { 
+  Moon, 
+  Sun, 
+  Plus, 
+  X, 
+  Save, 
+  FolderOpen, 
+  FilePlus 
+} from 'lucide-vue-next'
 
 const projectStore = useProjectStore()
 const settingsStore = useSettingsStore()
@@ -47,8 +56,8 @@ function handleKeydown(e: KeyboardEvent) {
         @click="settingsStore.toggleTheme"
         :title="settingsStore.theme === 'light' ? '다크 모드' : '라이트 모드'"
       >
-        <span v-if="settingsStore.theme === 'light'">🌙</span>
-        <span v-else>☀️</span>
+        <Moon v-if="settingsStore.theme === 'light'" :size="18" />
+        <Sun v-else :size="18" />
       </button>
     </div>
 
@@ -57,7 +66,7 @@ function handleKeydown(e: KeyboardEvent) {
       <div class="section-header">
         <span>챕터</span>
         <button class="add-btn" @click="projectStore.addChapter()" title="새 챕터">
-          +
+          <Plus :size="16" />
         </button>
       </div>
 
@@ -85,7 +94,7 @@ function handleKeydown(e: KeyboardEvent) {
             @click.stop="projectStore.deleteChapter(chapter.id)"
             title="삭제"
           >
-            ×
+            <X :size="14" />
           </button>
         </div>
       </div>
@@ -99,13 +108,16 @@ function handleKeydown(e: KeyboardEvent) {
         @click="projectStore.saveProject"
         :class="{ dirty: projectStore.isDirty }"
       >
-        💾 저장
+        <Save :size="16" />
+        <span>저장</span>
       </button>
       <button class="footer-btn" @click="projectStore.openProject">
-        📂 열기
+        <FolderOpen :size="16" />
+        <span>열기</span>
       </button>
       <button class="footer-btn" @click="projectStore.createProject">
-        ✨ 새로 만들기
+        <FilePlus :size="16" />
+        <span>새로 만들기</span>
       </button>
     </div>
   </div>
@@ -143,11 +155,13 @@ function handleKeydown(e: KeyboardEvent) {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s;
+  color: var(--text-secondary);
+  transition: all 0.2s;
 }
 
 .theme-toggle:hover {
   background: var(--border-color);
+  color: var(--text-primary);
 }
 
 .chapter-list {
@@ -169,11 +183,12 @@ function handleKeydown(e: KeyboardEvent) {
 }
 
 .add-btn {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   border-radius: 4px;
-  font-size: 1rem;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: var(--text-muted);
   transition: all 0.2s;
 }
@@ -229,7 +244,9 @@ function handleKeydown(e: KeyboardEvent) {
   width: 20px;
   height: 20px;
   border-radius: 4px;
-  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: var(--text-muted);
   transition: all 0.15s;
 }
@@ -262,12 +279,15 @@ function handleKeydown(e: KeyboardEvent) {
 
 .footer-btn {
   width: 100%;
-  padding: 0.5rem;
+  padding: 0.5rem 0.75rem;
   border-radius: 6px;
   font-size: 0.85rem;
   text-align: left;
   color: var(--text-secondary);
   transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .footer-btn:hover {

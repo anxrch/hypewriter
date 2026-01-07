@@ -1,6 +1,6 @@
 {
   "name": "hypewriter",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A writing tool for authors with custom fonts, typewriter mode, and footnotes",
   "type": "module",
   "scripts": {
@@ -20,7 +20,8 @@
     "@tiptap/extension-text-align": "^2.1.13",
     "@tauri-apps/api": "^2.0.0",
     "@tauri-apps/plugin-fs": "^2.0.0",
-    "@tauri-apps/plugin-dialog": "^2.0.0"
+    "@tauri-apps/plugin-dialog": "^2.0.0",
+    "lucide-vue-next": "^0.468.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.0",
