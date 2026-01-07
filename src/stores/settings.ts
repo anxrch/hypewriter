@@ -11,7 +11,7 @@ export interface FontInfo {
 export const useSettingsStore = defineStore('settings', () => {
   const theme = ref<'light' | 'dark'>('light')
   const typewriterMode = ref(false)
-  const focusMode = ref(false)
+  const lineHighlight = ref(true)
   const spellCheck = ref(true)
   const availableFonts = ref<FontInfo[]>([])
   const isLoadingFonts = ref(false)
@@ -26,14 +26,13 @@ export const useSettingsStore = defineStore('settings', () => {
   const firstLineIndent = ref(1)
   const useFirstLineIndent = ref(true)
 
-  // Load settings from localStorage on init
   function loadSettings() {
     const saved = localStorage.getItem('hypewriter-settings')
     if (saved) {
       const parsed = JSON.parse(saved)
       theme.value = parsed.theme || 'light'
       typewriterMode.value = parsed.typewriterMode || false
-      focusMode.value = parsed.focusMode || false
+      lineHighlight.value = parsed.lineHighlight ?? true
       spellCheck.value = parsed.spellCheck ?? true
       editorFont.value = parsed.editorFont || 'Pretendard'
       editorFontPath.value = parsed.editorFontPath || ''
@@ -46,12 +45,11 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
-  // Save settings to localStorage
   function saveSettings() {
     localStorage.setItem('hypewriter-settings', JSON.stringify({
       theme: theme.value,
       typewriterMode: typewriterMode.value,
-      focusMode: focusMode.value,
+      lineHighlight: lineHighlight.value,
       spellCheck: spellCheck.value,
       editorFont: editorFont.value,
       editorFontPath: editorFontPath.value,
@@ -64,16 +62,14 @@ export const useSettingsStore = defineStore('settings', () => {
     }))
   }
 
-  // Watch for changes and auto-save
   watch([
-    theme, typewriterMode, focusMode, spellCheck, editorFont, editorFontPath,
+    theme, typewriterMode, lineHighlight, spellCheck, editorFont, editorFontPath,
     editorFontSize, editorLineHeight, editorLetterSpacing, editorWidth, 
     firstLineIndent, useFirstLineIndent
   ], () => {
     saveSettings()
   })
 
-  // Apply theme to document
   watch(theme, (newTheme) => {
     document.documentElement.setAttribute('data-theme', newTheme)
   })
@@ -86,8 +82,8 @@ export const useSettingsStore = defineStore('settings', () => {
     typewriterMode.value = !typewriterMode.value
   }
 
-  function toggleFocusMode() {
-    focusMode.value = !focusMode.value
+  function toggleLineHighlight() {
+    lineHighlight.value = !lineHighlight.value
   }
 
   function toggleSpellCheck() {
@@ -103,7 +99,6 @@ export const useSettingsStore = defineStore('settings', () => {
     editorFontPath.value = path
   }
 
-  // 폰트 경로 찾기 (폰트 이름으로)
   function findFontPath(fontFamily: string): string {
     const font = availableFonts.value.find(
       f => f.family === fontFamily || f.fullName === fontFamily
@@ -111,7 +106,6 @@ export const useSettingsStore = defineStore('settings', () => {
     return font?.path || ''
   }
 
-  // 현재 폰트 경로 확인 및 복구
   function ensureFontPath() {
     if (!editorFontPath.value && editorFont.value && availableFonts.value.length > 0) {
       const path = findFontPath(editorFont.value)
@@ -129,8 +123,6 @@ export const useSettingsStore = defineStore('settings', () => {
     try {
       const fonts = await invoke<FontInfo[]>('get_system_fonts')
       availableFonts.value = fonts
-      
-      // 폰트 로드 후 현재 폰트 경로 확인 및 복구
       ensureFontPath()
     } catch (error) {
       console.error('Failed to load system fonts:', error)
@@ -146,19 +138,15 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
-  // PDF 내보내기용 폰트 경로 가져오기
   async function getFontPathForExport(): Promise<string> {
-    // 이미 경로가 있으면 반환
     if (editorFontPath.value) {
       return editorFontPath.value
     }
     
-    // 폰트 목록이 없으면 로드
     if (availableFonts.value.length === 0) {
       await loadSystemFonts()
     }
     
-    // 현재 폰트에서 경로 찾기
     const path = findFontPath(editorFont.value)
     if (path) {
       editorFontPath.value = path
@@ -169,13 +157,12 @@ export const useSettingsStore = defineStore('settings', () => {
     return ''
   }
 
-  // Initialize
   loadSettings()
 
   return {
     theme,
     typewriterMode,
-    focusMode,
+    lineHighlight,
     spellCheck,
     availableFonts,
     isLoadingFonts,
@@ -189,7 +176,7 @@ export const useSettingsStore = defineStore('settings', () => {
     useFirstLineIndent,
     toggleTheme,
     toggleTypewriterMode,
-    toggleFocusMode,
+    toggleLineHighlight,
     toggleSpellCheck,
     toggleFirstLineIndent,
     setFont,

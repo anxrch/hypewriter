@@ -24,7 +24,7 @@ import {
   Download,
   SpellCheck,
   Keyboard,
-  Focus
+  Highlighter
 } from 'lucide-vue-next'
 
 const props = defineProps<{
@@ -242,19 +242,19 @@ function isActive(name: string, attrs?: object): boolean {
       </button>
       <button
         class="toolbar-btn"
+        :class="{ active: settingsStore.lineHighlight }"
+        @click="settingsStore.toggleLineHighlight()"
+        title="줄 하이라이트"
+      >
+        <Highlighter :size="18" />
+      </button>
+      <button
+        class="toolbar-btn"
         :class="{ active: settingsStore.typewriterMode }"
         @click="settingsStore.toggleTypewriterMode()"
         title="타자기 모드"
       >
         <Keyboard :size="18" />
-      </button>
-      <button
-        class="toolbar-btn"
-        :class="{ active: settingsStore.focusMode }"
-        @click="settingsStore.toggleFocusMode()"
-        title="집중 모드"
-      >
-        <Focus :size="18" />
       </button>
     </div>
   </div>

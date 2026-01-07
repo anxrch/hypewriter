@@ -7,6 +7,7 @@ import Typography from '@tiptap/extension-typography'
 import Underline from '@tiptap/extension-underline'
 import TextAlign from '@tiptap/extension-text-align'
 import { Indent } from './extensions/Indent'
+import { LineHighlight } from './extensions/LineHighlight'
 import { useProjectStore } from '@/stores/project'
 import { useSettingsStore } from '@/stores/settings'
 import Toolbar from './Toolbar.vue'
@@ -17,6 +18,17 @@ const settingsStore = useSettingsStore()
 
 const editorContainer = ref<HTMLElement | null>(null)
 const showFootnotePanel = ref(false)
+
+// 글자수 세기
+const charCount = ref(0)
+const charCountNoSpaces = ref(0)
+
+function updateCharCount() {
+  if (!editor.value) return
+  const text = editor.value.state.doc.textContent
+  charCount.value = text.length
+  charCountNoSpaces.value = text.replace(/\s/g, '').length
+}
 
 const editor = useEditor({
   content: projectStore.currentChapter?.content || '',
@@ -34,7 +46,8 @@ const editor = useEditor({
     TextAlign.configure({
       types: ['heading', 'paragraph']
     }),
-    Indent
+    Indent,
+    LineHighlight
   ],
   editorProps: {
     attributes: {
@@ -49,14 +62,17 @@ const editor = useEditor({
       })
     }
     
-    // Typewriter mode: scroll to cursor
+    updateCharCount()
+    
     if (settingsStore.typewriterMode) {
       scrollToCursor()
     }
+  },
+  onCreate: () => {
+    updateCharCount()
   }
 })
 
-// Watch for spellcheck changes
 watch(() => settingsStore.spellCheck, (newValue) => {
   if (editor.value) {
     editor.value.setOptions({
@@ -70,14 +86,13 @@ watch(() => settingsStore.spellCheck, (newValue) => {
   }
 })
 
-// Watch for chapter changes
 watch(() => projectStore.currentChapterId, () => {
   if (editor.value && projectStore.currentChapter) {
     editor.value.commands.setContent(projectStore.currentChapter.content || '')
+    updateCharCount()
   }
 })
 
-// Typewriter mode: keep cursor centered
 function scrollToCursor() {
   if (!editorContainer.value || !editor.value) return
   
@@ -96,7 +111,6 @@ function scrollToCursor() {
   })
 }
 
-// Editor styles computed
 const editorStyles = computed(() => ({
   fontFamily: settingsStore.editorFont,
   fontSize: `${settingsStore.editorFontSize}px`,
@@ -108,9 +122,7 @@ const editorStyles = computed(() => ({
     : '0'
 }))
 
-// Keyboard shortcuts
 function handleKeydown(e: KeyboardEvent) {
-  // Ctrl+S to save
   if (e.ctrlKey && e.key === 's') {
     e.preventDefault()
     projectStore.saveProject()
@@ -129,19 +141,17 @@ onUnmounted(() => {
 
 <template>
   <div class="editor-wrapper">
-    <!-- Toolbar -->
     <Toolbar 
       :editor="editor" 
       @toggle-footnotes="showFootnotePanel = !showFootnotePanel"
     />
 
-    <!-- Editor Area -->
     <div 
       class="editor-container"
       ref="editorContainer"
       :class="{ 
         'typewriter-mode': settingsStore.typewriterMode,
-        'focus-mode': settingsStore.focusMode 
+        'line-highlight-enabled': settingsStore.lineHighlight
       }"
     >
       <div class="editor-content" :style="editorStyles">
@@ -149,7 +159,13 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- Footnote Panel -->
+    <!-- 상태 바 -->
+    <div class="status-bar">
+      <span class="char-count">
+        {{ charCountNoSpaces.toLocaleString() }}자 (공백 포함 {{ charCount.toLocaleString() }}자)
+      </span>
+    </div>
+
     <FootnotePanel 
       v-if="showFootnotePanel" 
       @close="showFootnotePanel = false"
@@ -176,13 +192,24 @@ onUnmounted(() => {
   padding-bottom: 45vh;
 }
 
-.editor-container.focus-mode {
-  background: var(--bg-primary);
-}
-
 .editor-content {
   margin: 0 auto;
   min-height: 100%;
+}
+
+/* 상태 바 */
+.status-bar {
+  padding: 0.5rem 1rem;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.char-count {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Prose Editor Styles */
@@ -279,14 +306,19 @@ onUnmounted(() => {
   height: 0;
 }
 
-/* Focus mode - fade non-focused paragraphs */
-.focus-mode :deep(.prose-editor > *:not(:focus-within)) {
-  opacity: 0.3;
-  transition: opacity 0.3s;
+/* Line highlight */
+.line-highlight-enabled :deep(.line-highlight) {
+  background: var(--line-highlight-bg, rgba(0, 0, 0, 0.04));
+  margin-left: -1rem;
+  margin-right: -1rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  border-radius: 4px;
+  transition: background 0.15s;
 }
 
-.focus-mode :deep(.prose-editor > *:focus-within) {
-  opacity: 1;
+[data-theme="dark"] .line-highlight-enabled :deep(.line-highlight) {
+  background: rgba(255, 255, 255, 0.05);
 }
 
 /* Footnote marker style */
