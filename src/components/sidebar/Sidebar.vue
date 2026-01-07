@@ -235,8 +235,15 @@ function handleKeydown(e: KeyboardEvent) {
   flex: 1;
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
+  border: 1px solid var(--border-color);
   background: var(--bg-primary);
+  color: var(--text-primary);
   font-size: 0.9rem;
+}
+
+.chapter-edit-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
 }
 
 .delete-btn {

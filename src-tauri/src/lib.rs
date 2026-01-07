@@ -83,7 +83,6 @@ fn get_system_fonts() -> Result<Vec<FontInfo>, String> {
 fn find_fallback_font_path() -> Option<String> {
     let source = SystemSource::new();
     
-    // Fallback: try common Korean fonts
     let fallback_fonts = [
         "Malgun Gothic",
         "맑은 고딕", 
@@ -107,7 +106,6 @@ fn find_fallback_font_path() -> Option<String> {
         }
     }
     
-    // Last resort: try Windows default paths
     let windows_fonts = [
         r"C:\Windows\Fonts\malgun.ttf",
         r"C:\Windows\Fonts\NanumGothic.ttf",
@@ -231,14 +229,26 @@ fn export_to_docx(path: String, content: ExportContent) -> Result<(), String> {
 
 #[tauri::command]
 fn export_to_pdf(path: String, content: ExportContent) -> Result<(), String> {
+    // A4 size: 210mm x 297mm
+    let page_width = 210.0;
+    let page_height = 297.0;
+    
+    // 여백 설정 (좌우 균형)
+    let margin_left = 30.0;   // 왼쪽 여백
+    let margin_right = 30.0;  // 오른쪽 여백
+    let margin_top = 27.0;    // 위쪽 여백 (페이지 상단에서 시작 위치)
+    let margin_bottom = 25.0; // 아래쪽 여백
+    
+    // 텍스트 영역 너비: 210 - 30 - 30 = 150mm
+    let text_width = page_width - margin_left - margin_right;
+    
     let (doc, page1, layer1) = PdfDocument::new(
         &content.title,
-        Mm(210.0),
-        Mm(297.0),
+        Mm(page_width),
+        Mm(page_height),
         "Layer 1",
     );
 
-    // Determine font path: use provided path first, then fallback
     let font_path = content.font_path
         .as_ref()
         .filter(|p| is_valid_font_path(p))
@@ -246,7 +256,6 @@ fn export_to_pdf(path: String, content: ExportContent) -> Result<(), String> {
         .or_else(find_fallback_font_path);
 
     let (font, font_bold) = if let Some(ref fp) = font_path {
-        // Load external font
         let mut font_file = File::open(fp)
             .map_err(|e| format!("Failed to open font file '{}': {}", fp, e))?;
         let mut font_data = Vec::new();
@@ -256,10 +265,8 @@ fn export_to_pdf(path: String, content: ExportContent) -> Result<(), String> {
         let font = doc.add_external_font(&*font_data)
             .map_err(|e| format!("Failed to add font: {}", e))?;
         
-        // Use same font for bold (external fonts don't have bold variant easily)
         (font.clone(), font)
     } else {
-        // Fallback to built-in fonts (won't support Korean)
         let font = doc.add_builtin_font(BuiltinFont::Helvetica)
             .map_err(|e| format!("Failed to add font: {}", e))?;
         let font_bold = doc.add_builtin_font(BuiltinFont::HelveticaBold)
@@ -268,56 +275,60 @@ fn export_to_pdf(path: String, content: ExportContent) -> Result<(), String> {
     };
 
     let mut current_layer = doc.get_page(page1).get_layer(layer1);
-    let mut y_position = 270.0;
-    let left_margin = 25.0;
+    let mut y_position = page_height - margin_top; // 위에서부터 시작
     let line_height = 6.0;
-    let page_bottom = 25.0;
 
     let add_new_page = |doc: &PdfDocumentReference| -> PdfLayerReference {
-        let (page, layer) = doc.add_page(Mm(210.0), Mm(297.0), "Layer 1");
+        let (page, layer) = doc.add_page(Mm(page_width), Mm(page_height), "Layer 1");
         doc.get_page(page).get_layer(layer)
     };
 
-    // Title
-    current_layer.use_text(&content.title, 24.0, Mm(left_margin), Mm(y_position), &font_bold);
-    y_position -= 12.0;
+    // 한글 기준 한 줄에 들어갈 수 있는 대략적인 글자 수 (11pt 기준, 150mm 너비)
+    // 한글 한 글자 ≈ 3.5~4mm, 150mm / 3.8mm ≈ 39자
+    let max_chars = 38;
 
-    // Author
+    // Title (중앙 정렬)
+    let title_x = margin_left + (text_width / 2.0) - ((content.title.chars().count() as f32 * 6.0) / 2.0);
+    current_layer.use_text(&content.title, 24.0, Mm(title_x.max(margin_left)), Mm(y_position), &font_bold);
+    y_position -= 15.0;
+
+    // Author (중앙 정렬)
     if !content.author.is_empty() {
-        current_layer.use_text(&content.author, 12.0, Mm(left_margin), Mm(y_position), &font);
-        y_position -= 8.0;
+        let author_x = margin_left + (text_width / 2.0) - ((content.author.chars().count() as f32 * 3.0) / 2.0);
+        current_layer.use_text(&content.author, 12.0, Mm(author_x.max(margin_left)), Mm(y_position), &font);
+        y_position -= 10.0;
     }
 
     y_position -= 15.0;
 
     // Chapters
     for chapter in &content.chapters {
-        if y_position < page_bottom + 30.0 {
+        if y_position < margin_bottom + 30.0 {
             current_layer = add_new_page(&doc);
-            y_position = 270.0;
+            y_position = page_height - margin_top;
         }
 
-        current_layer.use_text(&chapter.title, 16.0, Mm(left_margin), Mm(y_position), &font_bold);
-        y_position -= 10.0;
+        // Chapter title
+        current_layer.use_text(&chapter.title, 16.0, Mm(margin_left), Mm(y_position), &font_bold);
+        y_position -= 12.0;
 
         for line in chapter.content.lines() {
             let trimmed = line.trim();
             
-            if y_position < page_bottom {
+            if y_position < margin_bottom {
                 current_layer = add_new_page(&doc);
-                y_position = 270.0;
+                y_position = page_height - margin_top;
             }
 
             if trimmed.is_empty() {
                 y_position -= line_height / 2.0;
             } else {
-                let max_chars = 45; // Reduced for Korean characters (wider)
                 let mut remaining = trimmed;
                 
                 while !remaining.is_empty() {
-                    if y_position < page_bottom {
+                    if y_position < margin_bottom {
                         current_layer = add_new_page(&doc);
-                        y_position = 270.0;
+                        y_position = page_height - margin_top;
                     }
 
                     let (chunk, rest) = if remaining.chars().count() <= max_chars {
@@ -326,9 +337,10 @@ fn export_to_pdf(path: String, content: ExportContent) -> Result<(), String> {
                         let char_indices: Vec<_> = remaining.char_indices().collect();
                         let mut split_at = max_chars;
                         
+                        // 단어 경계에서 줄바꿈
                         for i in (0..max_chars.min(char_indices.len())).rev() {
                             if let Some((_, c)) = char_indices.get(i) {
-                                if *c == ' ' || *c == ',' || *c == '.' || *c == '。' || *c == '，' {
+                                if *c == ' ' || *c == ',' || *c == '.' || *c == '。' || *c == '，' || *c == '!' || *c == '?' {
                                     split_at = i + 1;
                                     break;
                                 }
@@ -343,37 +355,38 @@ fn export_to_pdf(path: String, content: ExportContent) -> Result<(), String> {
                         }
                     };
 
-                    current_layer.use_text(chunk.trim(), 11.0, Mm(left_margin), Mm(y_position), &font);
+                    current_layer.use_text(chunk.trim(), 11.0, Mm(margin_left), Mm(y_position), &font);
                     y_position -= line_height;
                     remaining = rest.trim();
                 }
             }
         }
 
+        // Footnotes
         if !chapter.footnotes.is_empty() {
-            y_position -= 5.0;
+            y_position -= 8.0;
             
-            if y_position < page_bottom + 20.0 {
+            if y_position < margin_bottom + 20.0 {
                 current_layer = add_new_page(&doc);
-                y_position = 270.0;
+                y_position = page_height - margin_top;
             }
 
-            current_layer.use_text("─────────", 10.0, Mm(left_margin), Mm(y_position), &font);
+            current_layer.use_text("─────────────────", 10.0, Mm(margin_left), Mm(y_position), &font);
             y_position -= line_height;
 
             for footnote in &chapter.footnotes {
-                if y_position < page_bottom {
+                if y_position < margin_bottom {
                     current_layer = add_new_page(&doc);
-                    y_position = 270.0;
+                    y_position = page_height - margin_top;
                 }
 
                 let footnote_text = format!("{} {}", footnote.marker, footnote.content);
-                current_layer.use_text(&footnote_text, 9.0, Mm(left_margin), Mm(y_position), &font);
-                y_position -= line_height * 0.8;
+                current_layer.use_text(&footnote_text, 9.0, Mm(margin_left), Mm(y_position), &font);
+                y_position -= line_height * 0.9;
             }
         }
 
-        y_position -= 15.0;
+        y_position -= 20.0;
     }
 
     doc.save(&mut BufWriter::new(

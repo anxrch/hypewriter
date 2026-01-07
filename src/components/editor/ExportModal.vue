@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { save } from '@tauri-apps/plugin-dialog'
 import { useProjectStore } from '@/stores/project'
@@ -15,34 +15,28 @@ const settingsStore = useSettingsStore()
 const isExporting = ref(false)
 const exportError = ref('')
 
-// Convert HTML to plain text
 function htmlToPlainText(html: string): string {
   const temp = document.createElement('div')
   temp.innerHTML = html
   
-  // Handle paragraphs
   temp.querySelectorAll('p').forEach(p => {
     p.insertAdjacentText('afterend', '\n\n')
   })
   
-  // Handle headings
   temp.querySelectorAll('h1, h2, h3').forEach(h => {
     h.insertAdjacentText('afterend', '\n\n')
   })
   
-  // Handle line breaks
   temp.querySelectorAll('br').forEach(br => {
     br.replaceWith('\n')
   })
   
-  // Handle blockquotes
   temp.querySelectorAll('blockquote').forEach(bq => {
     const text = bq.textContent || ''
     bq.textContent = text.split('\n').map(line => `    ${line}`).join('\n')
     bq.insertAdjacentText('afterend', '\n\n')
   })
   
-  // Handle lists
   temp.querySelectorAll('li').forEach(li => {
     li.insertAdjacentText('beforebegin', '• ')
     li.insertAdjacentText('afterend', '\n')
@@ -51,16 +45,17 @@ function htmlToPlainText(html: string): string {
   return temp.textContent?.trim() || ''
 }
 
-function prepareExportContent() {
+async function prepareExportContent() {
   if (!projectStore.currentProject) return null
   
   const project = projectStore.currentProject
+  const fontPath = await settingsStore.getFontPathForExport()
   
   return {
     title: project.metadata.title,
     author: project.metadata.author,
     font_family: settingsStore.editorFont,
-    font_path: settingsStore.editorFontPath || null,
+    font_path: fontPath || null,
     chapters: project.chapters.map(chapter => ({
       title: chapter.title,
       content: htmlToPlainText(chapter.content),
@@ -73,7 +68,7 @@ function prepareExportContent() {
 }
 
 async function exportToDocx() {
-  const content = prepareExportContent()
+  const content = await prepareExportContent()
   if (!content) return
   
   const path = await save({
@@ -97,7 +92,7 @@ async function exportToDocx() {
 }
 
 async function exportToPdf() {
-  const content = prepareExportContent()
+  const content = await prepareExportContent()
   if (!content) return
   
   const path = await save({
@@ -121,7 +116,7 @@ async function exportToPdf() {
 }
 
 async function exportToTxt() {
-  const content = prepareExportContent()
+  const content = await prepareExportContent()
   if (!content) return
   
   const path = await save({
@@ -164,11 +159,6 @@ async function exportToTxt() {
     isExporting.value = false
   }
 }
-
-// 폰트 경로가 있는지 확인
-const hasFontPath = computed(() => 
-  settingsStore.editorFontPath && settingsStore.editorFontPath.length > 0
-)
 </script>
 
 <template>
@@ -211,8 +201,7 @@ const hasFontPath = computed(() =>
             </span>
             <span class="export-label">
               <strong>PDF 문서 (.pdf)</strong>
-              <small v-if="hasFontPath">폰트: {{ settingsStore.editorFont }}</small>
-              <small v-else class="warning">⚠️ 폰트를 다시 선택해주세요</small>
+              <small>폰트: {{ settingsStore.editorFont }}</small>
             </span>
           </button>
           
@@ -371,10 +360,6 @@ const hasFontPath = computed(() =>
 .export-label small {
   font-size: 0.8rem;
   color: var(--text-muted);
-}
-
-.export-label small.warning {
-  color: #f59e0b;
 }
 
 .export-progress {

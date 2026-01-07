@@ -18,7 +18,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
   // Editor settings
   const editorFont = ref('Pretendard')
-  const editorFontPath = ref('') // 폰트 경로 추가
+  const editorFontPath = ref('')
   const editorFontSize = ref(16)
   const editorLineHeight = ref(1.8)
   const editorLetterSpacing = ref(0)
@@ -103,6 +103,25 @@ export const useSettingsStore = defineStore('settings', () => {
     editorFontPath.value = path
   }
 
+  // 폰트 경로 찾기 (폰트 이름으로)
+  function findFontPath(fontFamily: string): string {
+    const font = availableFonts.value.find(
+      f => f.family === fontFamily || f.fullName === fontFamily
+    )
+    return font?.path || ''
+  }
+
+  // 현재 폰트 경로 확인 및 복구
+  function ensureFontPath() {
+    if (!editorFontPath.value && editorFont.value && availableFonts.value.length > 0) {
+      const path = findFontPath(editorFont.value)
+      if (path) {
+        editorFontPath.value = path
+        saveSettings()
+      }
+    }
+  }
+
   async function loadSystemFonts() {
     if (isLoadingFonts.value) return
     
@@ -110,6 +129,9 @@ export const useSettingsStore = defineStore('settings', () => {
     try {
       const fonts = await invoke<FontInfo[]>('get_system_fonts')
       availableFonts.value = fonts
+      
+      // 폰트 로드 후 현재 폰트 경로 확인 및 복구
+      ensureFontPath()
     } catch (error) {
       console.error('Failed to load system fonts:', error)
       availableFonts.value = [
@@ -122,6 +144,29 @@ export const useSettingsStore = defineStore('settings', () => {
     } finally {
       isLoadingFonts.value = false
     }
+  }
+
+  // PDF 내보내기용 폰트 경로 가져오기
+  async function getFontPathForExport(): Promise<string> {
+    // 이미 경로가 있으면 반환
+    if (editorFontPath.value) {
+      return editorFontPath.value
+    }
+    
+    // 폰트 목록이 없으면 로드
+    if (availableFonts.value.length === 0) {
+      await loadSystemFonts()
+    }
+    
+    // 현재 폰트에서 경로 찾기
+    const path = findFontPath(editorFont.value)
+    if (path) {
+      editorFontPath.value = path
+      saveSettings()
+      return path
+    }
+    
+    return ''
   }
 
   // Initialize
@@ -148,6 +193,7 @@ export const useSettingsStore = defineStore('settings', () => {
     toggleSpellCheck,
     toggleFirstLineIndent,
     setFont,
-    loadSystemFonts
+    loadSystemFonts,
+    getFontPathForExport
   }
 })
