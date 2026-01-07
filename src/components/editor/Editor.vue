@@ -5,6 +5,7 @@ import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import Typography from '@tiptap/extension-typography'
 import Underline from '@tiptap/extension-underline'
+import TextAlign from '@tiptap/extension-text-align'
 import { Indent } from './extensions/Indent'
 import { useProjectStore } from '@/stores/project'
 import { useSettingsStore } from '@/stores/settings'
@@ -30,6 +31,9 @@ const editor = useEditor({
     }),
     Typography,
     Underline,
+    TextAlign.configure({
+      types: ['heading', 'paragraph']
+    }),
     Indent
   ],
   editorProps: {
@@ -190,6 +194,11 @@ onUnmounted(() => {
 :deep(.prose-editor p) {
   margin-bottom: 1em;
   text-indent: var(--first-line-indent, 0);
+}
+
+:deep(.prose-editor p[style*="text-align: center"]),
+:deep(.prose-editor p[style*="text-align: right"]) {
+  text-indent: 0;
 }
 
 :deep(.prose-editor h1) {

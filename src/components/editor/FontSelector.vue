@@ -19,8 +19,8 @@ const filteredFonts = computed(() => {
   )
 })
 
-function selectFont(fontFamily: string) {
-  settingsStore.editorFont = fontFamily
+function selectFont(fontFamily: string, fontPath: string) {
+  settingsStore.setFont(fontFamily, fontPath)
 }
 
 onMounted(() => {
@@ -97,11 +97,14 @@ onMounted(() => {
           :key="font.family"
           class="font-item"
           :class="{ active: font.family === settingsStore.editorFont }"
-          @click="selectFont(font.family)"
+          @click="selectFont(font.family, font.path)"
           :style="{ fontFamily: font.family }"
         >
           <span class="font-name">{{ font.fullName || font.family }}</span>
           <span class="font-preview">가나다라 ABC abc 123</span>
+          <span v-if="font.path" class="font-format">
+            {{ font.path.toLowerCase().endsWith('.otf') ? 'OTF' : 'TTF' }}
+          </span>
         </div>
       </div>
     </div>
@@ -299,6 +302,7 @@ onMounted(() => {
   cursor: pointer;
   border-bottom: 1px solid var(--border-color);
   transition: background 0.15s;
+  position: relative;
 }
 
 .font-item:hover {
@@ -320,6 +324,21 @@ onMounted(() => {
   display: block;
   font-size: 0.75rem;
   opacity: 0.7;
+}
+
+.font-format {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  font-size: 0.6rem;
+  padding: 0.15rem 0.35rem;
+  background: var(--bg-secondary);
+  border-radius: 3px;
+  opacity: 0.6;
+}
+
+.font-item.active .font-format {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 /* Paragraph Settings */

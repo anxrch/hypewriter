@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import type { Editor } from '@tiptap/vue-3'
 import { useSettingsStore } from '@/stores/settings'
 import FontSelector from './FontSelector.vue'
+import ExportModal from './ExportModal.vue'
 
 const props = defineProps<{
   editor: Editor | undefined
@@ -14,6 +15,7 @@ const emit = defineEmits<{
 
 const settingsStore = useSettingsStore()
 const showFontSelector = ref(false)
+const showExportModal = ref(false)
 
 function isActive(name: string, attrs?: object): boolean {
   return props.editor?.isActive(name, attrs) ?? false
@@ -91,6 +93,51 @@ function isActive(name: string, attrs?: object): boolean {
     <div class="toolbar-divider" />
 
     <div class="toolbar-group">
+      <!-- Text Alignment -->
+      <button
+        class="toolbar-btn align-btn"
+        :class="{ active: isActive({ textAlign: 'left' }) }"
+        @click="editor?.chain().focus().setTextAlign('left').run()"
+        title="왼쪽 정렬"
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <rect x="1" y="2" width="14" height="2"/>
+          <rect x="1" y="6" width="10" height="2"/>
+          <rect x="1" y="10" width="14" height="2"/>
+          <rect x="1" y="14" width="8" height="2"/>
+        </svg>
+      </button>
+      <button
+        class="toolbar-btn align-btn"
+        :class="{ active: isActive({ textAlign: 'center' }) }"
+        @click="editor?.chain().focus().setTextAlign('center').run()"
+        title="가운데 정렬"
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <rect x="1" y="2" width="14" height="2"/>
+          <rect x="3" y="6" width="10" height="2"/>
+          <rect x="1" y="10" width="14" height="2"/>
+          <rect x="4" y="14" width="8" height="2"/>
+        </svg>
+      </button>
+      <button
+        class="toolbar-btn align-btn"
+        :class="{ active: isActive({ textAlign: 'right' }) }"
+        @click="editor?.chain().focus().setTextAlign('right').run()"
+        title="오른쪽 정렬"
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <rect x="1" y="2" width="14" height="2"/>
+          <rect x="5" y="6" width="10" height="2"/>
+          <rect x="1" y="10" width="14" height="2"/>
+          <rect x="7" y="14" width="8" height="2"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="toolbar-divider" />
+
+    <div class="toolbar-group">
       <!-- Indent -->
       <button
         class="toolbar-btn"
@@ -140,13 +187,20 @@ function isActive(name: string, attrs?: object): boolean {
     <div class="toolbar-divider" />
 
     <div class="toolbar-group">
-      <!-- Footnote -->
+      <!-- Footnote & Export -->
       <button
         class="toolbar-btn"
         @click="emit('toggle-footnotes')"
         title="각주 패널"
       >
         📝
+      </button>
+      <button
+        class="toolbar-btn"
+        @click="showExportModal = true"
+        title="내보내기"
+      >
+        📤
       </button>
     </div>
 
@@ -197,6 +251,12 @@ function isActive(name: string, attrs?: object): boolean {
       </button>
     </div>
   </div>
+
+  <!-- Export Modal -->
+  <ExportModal 
+    v-if="showExportModal" 
+    @close="showExportModal = false"
+  />
 </template>
 
 <style scoped>
@@ -236,6 +296,9 @@ function isActive(name: string, attrs?: object): boolean {
   transition: all 0.15s;
   min-width: 32px;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .toolbar-btn:hover {
@@ -248,10 +311,18 @@ function isActive(name: string, attrs?: object): boolean {
   color: white;
 }
 
+.toolbar-btn svg {
+  display: block;
+}
+
 .font-btn {
   max-width: 150px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.align-btn {
+  padding: 0.375rem 0.5rem;
 }
 </style>

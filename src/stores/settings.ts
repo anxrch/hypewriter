@@ -18,6 +18,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
   // Editor settings
   const editorFont = ref('Pretendard')
+  const editorFontPath = ref('') // 폰트 경로 추가
   const editorFontSize = ref(16)
   const editorLineHeight = ref(1.8)
   const editorLetterSpacing = ref(0)
@@ -35,6 +36,7 @@ export const useSettingsStore = defineStore('settings', () => {
       focusMode.value = parsed.focusMode || false
       spellCheck.value = parsed.spellCheck ?? true
       editorFont.value = parsed.editorFont || 'Pretendard'
+      editorFontPath.value = parsed.editorFontPath || ''
       editorFontSize.value = parsed.editorFontSize || 16
       editorLineHeight.value = parsed.editorLineHeight || 1.8
       editorLetterSpacing.value = parsed.editorLetterSpacing ?? 0
@@ -52,6 +54,7 @@ export const useSettingsStore = defineStore('settings', () => {
       focusMode: focusMode.value,
       spellCheck: spellCheck.value,
       editorFont: editorFont.value,
+      editorFontPath: editorFontPath.value,
       editorFontSize: editorFontSize.value,
       editorLineHeight: editorLineHeight.value,
       editorLetterSpacing: editorLetterSpacing.value,
@@ -63,8 +66,8 @@ export const useSettingsStore = defineStore('settings', () => {
 
   // Watch for changes and auto-save
   watch([
-    theme, typewriterMode, focusMode, spellCheck, editorFont, editorFontSize, 
-    editorLineHeight, editorLetterSpacing, editorWidth, 
+    theme, typewriterMode, focusMode, spellCheck, editorFont, editorFontPath,
+    editorFontSize, editorLineHeight, editorLetterSpacing, editorWidth, 
     firstLineIndent, useFirstLineIndent
   ], () => {
     saveSettings()
@@ -93,6 +96,11 @@ export const useSettingsStore = defineStore('settings', () => {
 
   function toggleFirstLineIndent() {
     useFirstLineIndent.value = !useFirstLineIndent.value
+  }
+
+  function setFont(family: string, path: string) {
+    editorFont.value = family
+    editorFontPath.value = path
   }
 
   async function loadSystemFonts() {
@@ -127,6 +135,7 @@ export const useSettingsStore = defineStore('settings', () => {
     availableFonts,
     isLoadingFonts,
     editorFont,
+    editorFontPath,
     editorFontSize,
     editorLineHeight,
     editorLetterSpacing,
@@ -138,6 +147,7 @@ export const useSettingsStore = defineStore('settings', () => {
     toggleFocusMode,
     toggleSpellCheck,
     toggleFirstLineIndent,
+    setFont,
     loadSystemFonts
   }
 })
