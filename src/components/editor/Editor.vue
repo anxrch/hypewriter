@@ -8,6 +8,8 @@ import Underline from '@tiptap/extension-underline'
 import TextAlign from '@tiptap/extension-text-align'
 import { Indent } from './extensions/Indent'
 import { LineHighlight } from './extensions/LineHighlight'
+import { CustomHorizontalRule } from './extensions/CustomHorizontalRule'
+import { Bubble } from './extensions/Bubble'
 import { useProjectStore } from '@/stores/project'
 import { useSettingsStore } from '@/stores/settings'
 import Toolbar from './Toolbar.vue'
@@ -36,7 +38,8 @@ const editor = useEditor({
     StarterKit.configure({
       heading: {
         levels: [1, 2, 3]
-      }
+      },
+      horizontalRule: false
     }),
     Placeholder.configure({
       placeholder: '이야기를 시작하세요...'
@@ -47,7 +50,9 @@ const editor = useEditor({
       types: ['heading', 'paragraph']
     }),
     Indent,
-    LineHighlight
+    LineHighlight,
+    CustomHorizontalRule,
+    Bubble
   ],
   editorProps: {
     attributes: {
@@ -291,10 +296,95 @@ onUnmounted(() => {
   text-indent: 0;
 }
 
+/* 구분선 스타일 */
 :deep(.prose-editor hr) {
   border: none;
-  border-top: 1px solid var(--border-color);
   margin: 2em 0;
+  text-align: center;
+}
+
+:deep(.prose-editor hr[data-type="solid"]) {
+  border-top: 1px solid var(--border-color);
+}
+
+:deep(.prose-editor hr[data-type="dashed"]) {
+  border-top: 1px dashed var(--border-color);
+}
+
+:deep(.prose-editor hr[data-type="dotted"]) {
+  border-top: 2px dotted var(--border-color);
+}
+
+:deep(.prose-editor hr[data-type="stars"])::before {
+  content: '✦   ✦   ✦';
+  color: var(--text-muted);
+  font-size: 0.9em;
+  letter-spacing: 0.5em;
+}
+
+:deep(.prose-editor hr[data-type="dots"])::before {
+  content: '• • •';
+  color: var(--text-muted);
+  font-size: 1.2em;
+  letter-spacing: 0.8em;
+}
+
+:deep(.prose-editor hr[data-type="flourish"])::before {
+  content: '❧';
+  color: var(--text-muted);
+  font-size: 1.5em;
+}
+
+:deep(.prose-editor hr[data-type="wave"])::before {
+  content: '～～～';
+  color: var(--text-muted);
+  font-size: 1em;
+  letter-spacing: 0.3em;
+}
+
+/* 말풍선 스타일 */
+:deep(.prose-editor .bubble) {
+  display: block;
+  max-width: 70%;
+  padding: 0.75em 1em;
+  margin: 0.5em 0;
+  border-radius: 1.2em;
+  text-indent: 0;
+  position: relative;
+  clear: both;
+  color: #000;
+}
+
+:deep(.prose-editor .bubble-left) {
+  background: #e9e9eb;
+  float: left;
+  border-bottom-left-radius: 0.3em;
+  margin-right: auto;
+}
+
+:deep(.prose-editor .bubble-right) {
+  background: #a8d4ff;
+  float: right;
+  border-bottom-right-radius: 0.3em;
+  margin-left: auto;
+}
+
+/* 말풍선 뒤 클리어 */
+:deep(.prose-editor .bubble + *) {
+  clear: both;
+}
+
+/* 다크 모드 말풍선 */
+[data-theme="dark"] :deep(.prose-editor .bubble) {
+  color: #fff;
+}
+
+[data-theme="dark"] :deep(.prose-editor .bubble-left) {
+  background: #3a3a3c;
+}
+
+[data-theme="dark"] :deep(.prose-editor .bubble-right) {
+  background: #2a5a8a;
 }
 
 /* Placeholder */

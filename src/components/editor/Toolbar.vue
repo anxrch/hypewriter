@@ -24,7 +24,9 @@ import {
   Download,
   SpellCheck,
   Keyboard,
-  Highlighter
+  Highlighter,
+  ChevronDown,
+  MessageCircle
 } from 'lucide-vue-next'
 
 const props = defineProps<{
@@ -38,9 +40,47 @@ const emit = defineEmits<{
 const settingsStore = useSettingsStore()
 const showFontSelector = ref(false)
 const showExportModal = ref(false)
+const showDividerMenu = ref(false)
+const showBubbleMenu = ref(false)
+
+const dividerTypes = [
+  { type: 'solid', label: '실선', preview: '───────' },
+  { type: 'dashed', label: '파선', preview: '- - - - -' },
+  { type: 'dotted', label: '점선', preview: '· · · · · · ·' },
+  { type: 'stars', label: '별표', preview: '✦   ✦   ✦' },
+  { type: 'dots', label: '점', preview: '• • •' },
+  { type: 'flourish', label: '장식', preview: '❧' },
+  { type: 'wave', label: '물결', preview: '～～～' }
+]
+
+function insertDivider(type: string) {
+  props.editor?.chain().focus().setHorizontalRule(type).run()
+  showDividerMenu.value = false
+}
+
+function insertBubble(position: 'left' | 'right') {
+  props.editor?.chain().focus().insertBubble(position).run()
+  showBubbleMenu.value = false
+}
+
+function removeBubble() {
+  props.editor?.chain().focus().removeBubble().run()
+  showBubbleMenu.value = false
+}
 
 function isActive(name: string, attrs?: object): boolean {
   return props.editor?.isActive(name, attrs) ?? false
+}
+
+function isInBubble(): boolean {
+  if (!props.editor) return false
+  const { $from } = props.editor.state.selection
+  for (let depth = $from.depth; depth > 0; depth--) {
+    if ($from.node(depth).type.name === 'bubble') {
+      return true
+    }
+  }
+  return false
 }
 </script>
 
@@ -182,13 +222,61 @@ function isActive(name: string, attrs?: object): boolean {
       >
         <List :size="18" />
       </button>
-      <button
-        class="toolbar-btn"
-        @click="editor?.chain().focus().setHorizontalRule().run()"
-        title="구분선"
-      >
-        <Minus :size="18" />
-      </button>
+      
+      <!-- 구분선 드롭다운 -->
+      <div class="dropdown-wrapper">
+        <button
+          class="toolbar-btn dropdown-btn"
+          @click="showDividerMenu = !showDividerMenu; showBubbleMenu = false"
+          title="구분선"
+        >
+          <Minus :size="18" />
+          <ChevronDown :size="12" />
+        </button>
+        
+        <div v-if="showDividerMenu" class="dropdown-menu divider-menu">
+          <button
+            v-for="divider in dividerTypes"
+            :key="divider.type"
+            class="dropdown-item"
+            @click="insertDivider(divider.type)"
+          >
+            <span class="divider-preview">{{ divider.preview }}</span>
+            <span class="divider-label">{{ divider.label }}</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 말풍선 드롭다운 -->
+      <div class="dropdown-wrapper">
+        <button
+          class="toolbar-btn dropdown-btn"
+          :class="{ active: isInBubble() }"
+          @click="showBubbleMenu = !showBubbleMenu; showDividerMenu = false"
+          title="말풍선"
+        >
+          <MessageCircle :size="18" />
+          <ChevronDown :size="12" />
+        </button>
+        
+        <div v-if="showBubbleMenu" class="dropdown-menu bubble-menu">
+          <button class="dropdown-item bubble-item" @click="insertBubble('left')">
+            <span class="bubble-preview bubble-preview-left">왼쪽</span>
+            <span class="bubble-label">상대방</span>
+          </button>
+          <button class="dropdown-item bubble-item" @click="insertBubble('right')">
+            <span class="bubble-preview bubble-preview-right">오른쪽</span>
+            <span class="bubble-label">나</span>
+          </button>
+          <button 
+            v-if="isInBubble()"
+            class="dropdown-item bubble-item-remove" 
+            @click="removeBubble"
+          >
+            말풍선 해제
+          </button>
+        </div>
+      </div>
     </div>
 
     <div class="toolbar-divider" />
@@ -259,6 +347,13 @@ function isActive(name: string, attrs?: object): boolean {
     </div>
   </div>
 
+  <!-- Backdrop to close dropdowns -->
+  <div 
+    v-if="showDividerMenu || showBubbleMenu" 
+    class="dropdown-backdrop"
+    @click="showDividerMenu = false; showBubbleMenu = false"
+  />
+
   <!-- Export Modal -->
   <ExportModal 
     v-if="showExportModal" 
@@ -325,5 +420,113 @@ function isActive(name: string, attrs?: object): boolean {
   text-overflow: ellipsis;
   white-space: nowrap;
   height: auto;
+}
+
+/* Dropdown */
+.dropdown-wrapper {
+  position: relative;
+}
+
+.dropdown-btn {
+  gap: 2px;
+  padding-right: 0.25rem;
+}
+
+.dropdown-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 99;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  min-width: 160px;
+  padding: 0.25rem;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  transition: background 0.15s;
+}
+
+.dropdown-item:hover {
+  background: var(--border-color);
+}
+
+.divider-preview {
+  flex: 1;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.divider-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  min-width: 2.5rem;
+}
+
+/* 말풍선 메뉴 */
+.bubble-menu {
+  min-width: 140px;
+}
+
+.bubble-item {
+  justify-content: space-between;
+}
+
+.bubble-preview {
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.8em;
+  font-size: 0.75rem;
+}
+
+.bubble-preview-left {
+  background: #e9e9eb;
+  color: #000;
+  border-bottom-left-radius: 0.2em;
+}
+
+.bubble-preview-right {
+  background: #007aff;
+  color: #fff;
+  border-bottom-right-radius: 0.2em;
+}
+
+.bubble-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.bubble-item-remove {
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  border-top: 1px solid var(--border-color);
+  margin-top: 0.25rem;
+  padding-top: 0.5rem;
+}
+
+[data-theme="dark"] .bubble-preview-left {
+  background: #3a3a3c;
+  color: #fff;
 }
 </style>
