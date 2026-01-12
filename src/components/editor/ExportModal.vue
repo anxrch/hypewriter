@@ -19,13 +19,22 @@ function htmlToPlainText(html: string): string {
   const temp = document.createElement('div')
   temp.innerHTML = html
   
-  // 말풍선을 인용 형식으로 변환
-  temp.querySelectorAll('[data-type="bubble"]').forEach(bubble => {
-    const position = bubble.getAttribute('data-position')
-    const text = bubble.textContent || ''
-    const prefix = position === 'right' ? '    > ' : '    < '
-    bubble.textContent = prefix + text
-    bubble.insertAdjacentText('afterend', '\n\n')
+  // 인용 스타일 변환
+  temp.querySelectorAll('blockquote').forEach(bq => {
+    const type = bq.getAttribute('data-type') || 'line'
+    const text = bq.textContent || ''
+    
+    let prefix = ''
+    if (type === 'bubble-left') {
+      prefix = '    ◀ '
+    } else if (type === 'bubble-right') {
+      prefix = '    ▶ '
+    } else {
+      prefix = '    '
+    }
+    
+    bq.textContent = prefix + text
+    bq.insertAdjacentText('afterend', '\n\n')
   })
   
   temp.querySelectorAll('p').forEach(p => {
@@ -40,37 +49,12 @@ function htmlToPlainText(html: string): string {
     br.replaceWith('\n')
   })
   
-  temp.querySelectorAll('blockquote').forEach(bq => {
-    const text = bq.textContent || ''
-    bq.textContent = text.split('\n').map(line => `    ${line}`).join('\n')
-    bq.insertAdjacentText('afterend', '\n\n')
-  })
-  
   temp.querySelectorAll('li').forEach(li => {
     li.insertAdjacentText('beforebegin', '• ')
     li.insertAdjacentText('afterend', '\n')
   })
   
   return temp.textContent?.trim() || ''
-}
-
-// HTML을 DOCX용으로 변환 (말풍선 -> 인용)
-function convertBubblesForExport(html: string): string {
-  const temp = document.createElement('div')
-  temp.innerHTML = html
-  
-  // 말풍선을 blockquote로 변환
-  temp.querySelectorAll('[data-type="bubble"]').forEach(bubble => {
-    const position = bubble.getAttribute('data-position')
-    const text = bubble.textContent || ''
-    const prefix = position === 'right' ? '▶ ' : '◀ '
-    
-    const blockquote = document.createElement('blockquote')
-    blockquote.textContent = prefix + text
-    bubble.replaceWith(blockquote)
-  })
-  
-  return temp.innerHTML
 }
 
 async function prepareExportContent() {
@@ -86,7 +70,7 @@ async function prepareExportContent() {
     font_path: fontPath || null,
     chapters: project.chapters.map(chapter => ({
       title: chapter.title,
-      content: htmlToPlainText(convertBubblesForExport(chapter.content)),
+      content: htmlToPlainText(chapter.content),
       footnotes: chapter.footnotes.map(fn => ({
         marker: fn.marker,
         content: fn.content
@@ -248,10 +232,6 @@ async function exportToTxt() {
           </button>
         </div>
         
-        <p class="export-note">
-          말풍선은 인용(◀ / ▶) 형식으로 변환됩니다.
-        </p>
-        
         <div v-if="isExporting" class="export-progress">
           내보내는 중...
         </div>
@@ -392,13 +372,6 @@ async function exportToTxt() {
 .export-label small {
   font-size: 0.8rem;
   color: var(--text-muted);
-}
-
-.export-note {
-  margin-top: 1rem;
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  text-align: center;
 }
 
 .export-progress {

@@ -15,9 +15,8 @@ const footnotes = computed(() => {
 })
 
 function generateMarker(index: number): string {
-  // Use symbols like *, †, ‡, §, etc. for literary footnotes
-  const markers = ['*', '†', '‡', '§', '‖', '¶', '#', '**', '††', '‡‡']
-  return markers[index % markers.length]
+  // 숫자 각주 사용
+  return String(index + 1)
 }
 
 function addFootnote() {
@@ -97,7 +96,7 @@ function copyMarker(marker: string) {
         <div class="footnote-hint" v-if="footnotes.length === 0">
           각주를 추가하면 여기에 표시됩니다.
           <br />
-          각주 기호를 클릭하면 본문에 삽입할 기호가 복사됩니다.
+          각주 번호를 클릭하면 본문에 삽입할 기호가 복사됩니다.
         </div>
 
         <div 
@@ -133,7 +132,7 @@ function copyMarker(marker: string) {
 
     <div class="panel-footer">
       <div class="footer-hint">
-        💡 각주 기호를 복사한 후 본문에서 원하는 위치에 붙여넣기 하세요.
+        💡 각주 번호를 복사한 후 본문에서 원하는 위치에 붙여넣기 하세요.
       </div>
     </div>
   </div>
@@ -253,17 +252,20 @@ function copyMarker(marker: string) {
 }
 
 .footnote-marker {
-  font-size: 1.25rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--accent-color);
   cursor: pointer;
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
   transition: background 0.15s;
+  min-width: 28px;
+  text-align: center;
+  background: var(--bg-secondary);
 }
 
 .footnote-marker:hover {
-  background: var(--bg-secondary);
+  background: var(--border-color);
 }
 
 .remove-btn {

@@ -1,21 +1,22 @@
 import { Node, mergeAttributes } from '@tiptap/core'
 import { TextSelection } from '@tiptap/pm/state'
 
-export interface BubbleOptions {
+export interface CustomBlockquoteOptions {
   HTMLAttributes: Record<string, any>
 }
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
-    bubble: {
-      insertBubble: (position: 'left' | 'right') => ReturnType
-      removeBubble: () => ReturnType
+    customBlockquote: {
+      setBlockquote: (type?: string) => ReturnType
+      toggleBlockquote: (type?: string) => ReturnType
+      unsetBlockquote: () => ReturnType
     }
   }
 }
 
-export const Bubble = Node.create<BubbleOptions>({
-  name: 'bubble',
+export const CustomBlockquote = Node.create<CustomBlockquoteOptions>({
+  name: 'blockquote',
 
   addOptions() {
     return {
@@ -31,11 +32,12 @@ export const Bubble = Node.create<BubbleOptions>({
 
   addAttributes() {
     return {
-      position: {
-        default: 'left',
-        parseHTML: element => element.getAttribute('data-position') || 'left',
+      type: {
+        default: 'line',
+        parseHTML: element => element.getAttribute('data-type') || 'line',
         renderHTML: attributes => ({
-          'data-position': attributes.position
+          'data-type': attributes.type,
+          class: `blockquote blockquote-${attributes.type}`
         })
       }
     }
@@ -43,43 +45,40 @@ export const Bubble = Node.create<BubbleOptions>({
 
   parseHTML() {
     return [
-      {
-        tag: 'div[data-type="bubble"]',
-      },
+      { tag: 'blockquote' },
+      { tag: 'div[data-type="bubble"]', getAttrs: el => {
+        const position = (el as HTMLElement).getAttribute('data-position')
+        return { type: position === 'right' ? 'bubble-right' : 'bubble-left' }
+      }}
     ]
   },
 
   renderHTML({ node, HTMLAttributes }) {
-    return ['div', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, {
-      'data-type': 'bubble',
-      'data-position': node.attrs.position,
-      class: `bubble bubble-${node.attrs.position}`
+    return ['blockquote', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, {
+      'data-type': node.attrs.type,
+      class: `blockquote blockquote-${node.attrs.type}`
     }), 0]
   },
 
   addCommands() {
     return {
-      insertBubble:
-        (position) =>
+      setBlockquote:
+        (type = 'line') =>
         ({ state, dispatch, tr }) => {
           const { selection } = state
           const { from, to } = selection
           
-          // 선택된 텍스트 가져오기
           const selectedText = state.doc.textBetween(from, to, '')
           
-          // 말풍선 노드 생성
-          const bubbleNode = this.type.create(
-            { position },
+          const blockquoteNode = this.type.create(
+            { type },
             selectedText ? state.schema.text(selectedText) : null
           )
           
           if (dispatch) {
-            // 선택 영역 삭제 후 말풍선 삽입
             tr.deleteSelection()
-            tr.insert(tr.selection.from, bubbleNode)
+            tr.insert(tr.selection.from, blockquoteNode)
             
-            // 커서를 말풍선 안으로 이동
             const newPos = tr.selection.from - 1
             tr.setSelection(TextSelection.create(tr.doc, newPos))
             
@@ -88,16 +87,28 @@ export const Bubble = Node.create<BubbleOptions>({
           
           return true
         },
-      removeBubble:
-        () =>
+      toggleBlockquote:
+        (type = 'line') =>
         ({ state, dispatch, tr, commands }) => {
-          const { selection } = state
-          const { $from } = selection
+          const { $from } = state.selection
           
-          // 현재 위치에서 bubble 노드 찾기
+          // 이미 blockquote 안에 있으면 해제
+          for (let depth = $from.depth; depth > 0; depth--) {
+            if ($from.node(depth).type.name === 'blockquote') {
+              return commands.unsetBlockquote()
+            }
+          }
+          
+          return commands.setBlockquote(type)
+        },
+      unsetBlockquote:
+        () =>
+        ({ state, dispatch, tr }) => {
+          const { $from } = state.selection
+          
           for (let depth = $from.depth; depth > 0; depth--) {
             const node = $from.node(depth)
-            if (node.type.name === 'bubble') {
+            if (node.type.name === 'blockquote') {
               const start = $from.before(depth)
               const end = $from.after(depth)
               const content = node.textContent
@@ -119,14 +130,12 @@ export const Bubble = Node.create<BubbleOptions>({
 
   addKeyboardShortcuts() {
     return {
-      // Enter로 말풍선 빠져나가기
       'Enter': ({ editor }) => {
         const { state } = editor
         const { $from } = state.selection
         
         for (let depth = $from.depth; depth > 0; depth--) {
-          if ($from.node(depth).type.name === 'bubble') {
-            // 말풍선 뒤에 새 문단 삽입
+          if ($from.node(depth).type.name === 'blockquote') {
             return editor.chain()
               .command(({ tr, dispatch }) => {
                 if (dispatch) {
@@ -142,7 +151,6 @@ export const Bubble = Node.create<BubbleOptions>({
         }
         return false
       },
-      // Backspace로 빈 말풍선 삭제
       'Backspace': ({ editor }) => {
         const { state } = editor
         const { $from, empty } = state.selection
@@ -151,8 +159,8 @@ export const Bubble = Node.create<BubbleOptions>({
         
         for (let depth = $from.depth; depth > 0; depth--) {
           const node = $from.node(depth)
-          if (node.type.name === 'bubble' && node.textContent === '') {
-            return editor.commands.removeBubble()
+          if (node.type.name === 'blockquote' && node.textContent === '') {
+            return editor.commands.unsetBlockquote()
           }
         }
         return false

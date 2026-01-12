@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useSettingsStore } from '@/stores/settings'
 
 const emit = defineEmits<{
@@ -7,16 +8,22 @@ const emit = defineEmits<{
 }>()
 
 const settingsStore = useSettingsStore()
+const { availableFonts, isLoadingFonts, editorFont, editorFontSize, editorWidth, editorLineHeight, editorLetterSpacing, useFirstLineIndent, firstLineIndent } = storeToRefs(settingsStore)
+
 const searchQuery = ref('')
 const activeTab = ref<'font' | 'paragraph'>('font')
 
 const filteredFonts = computed(() => {
-  const query = searchQuery.value.toLowerCase()
-  if (!query) return settingsStore.availableFonts
-  return settingsStore.availableFonts.filter(font => 
-    font.family.toLowerCase().includes(query) ||
-    font.fullName.toLowerCase().includes(query)
-  )
+  const fonts = availableFonts.value
+  const query = searchQuery.value.toLowerCase().trim()
+  
+  if (!query) return fonts
+  
+  return fonts.filter(font => {
+    const family = (font.family || '').toLowerCase()
+    const fullName = (font.fullName || '').toLowerCase()
+    return family.includes(query) || fullName.includes(query)
+  })
 })
 
 function selectFont(fontFamily: string, fontPath: string) {
@@ -24,7 +31,7 @@ function selectFont(fontFamily: string, fontPath: string) {
 }
 
 onMounted(() => {
-  if (settingsStore.availableFonts.length === 0) {
+  if (availableFonts.value.length === 0) {
     settingsStore.loadSystemFonts()
   }
 })
@@ -66,7 +73,7 @@ onMounted(() => {
           <label>크기</label>
           <input
             type="number"
-            v-model.number="settingsStore.editorFontSize"
+            v-model.number="editorFontSize"
             min="10"
             max="32"
             class="setting-input"
@@ -77,7 +84,7 @@ onMounted(() => {
           <label>편집 너비</label>
           <input
             type="number"
-            v-model.number="settingsStore.editorWidth"
+            v-model.number="editorWidth"
             min="400"
             max="1200"
             step="50"
@@ -88,7 +95,7 @@ onMounted(() => {
       </div>
 
       <div class="font-list">
-        <div v-if="settingsStore.isLoadingFonts" class="loading">
+        <div v-if="isLoadingFonts" class="loading">
           글꼴 목록을 불러오는 중...
         </div>
         <div
@@ -96,7 +103,7 @@ onMounted(() => {
           v-for="font in filteredFonts"
           :key="font.family"
           class="font-item"
-          :class="{ active: font.family === settingsStore.editorFont }"
+          :class="{ active: font.family === editorFont }"
           @click="selectFont(font.family, font.path)"
           :style="{ fontFamily: font.family }"
         >
@@ -117,15 +124,15 @@ onMounted(() => {
           <div class="setting-row-full">
             <input
               type="range"
-              v-model.number="settingsStore.editorLineHeight"
+              v-model.number="editorLineHeight"
               min="1"
               max="3"
               step="0.1"
               class="setting-slider"
             />
-            <span class="setting-value">{{ settingsStore.editorLineHeight.toFixed(1) }}</span>
+            <span class="setting-value">{{ editorLineHeight.toFixed(1) }}</span>
           </div>
-          <div class="setting-preview line-height-preview" :style="{ lineHeight: settingsStore.editorLineHeight }">
+          <div class="setting-preview line-height-preview" :style="{ lineHeight: editorLineHeight }">
             <p>행간 미리보기입니다.</p>
             <p>두 번째 줄입니다.</p>
           </div>
@@ -136,15 +143,15 @@ onMounted(() => {
           <div class="setting-row-full">
             <input
               type="range"
-              v-model.number="settingsStore.editorLetterSpacing"
+              v-model.number="editorLetterSpacing"
               min="-0.1"
               max="0.3"
               step="0.01"
               class="setting-slider"
             />
-            <span class="setting-value">{{ settingsStore.editorLetterSpacing.toFixed(2) }}em</span>
+            <span class="setting-value">{{ editorLetterSpacing.toFixed(2) }}em</span>
           </div>
-          <div class="setting-preview" :style="{ letterSpacing: `${settingsStore.editorLetterSpacing}em` }">
+          <div class="setting-preview" :style="{ letterSpacing: `${editorLetterSpacing}em` }">
             자간 미리보기 텍스트입니다.
           </div>
         </div>
@@ -155,26 +162,26 @@ onMounted(() => {
             <label class="checkbox-label">
               <input
                 type="checkbox"
-                v-model="settingsStore.useFirstLineIndent"
+                v-model="useFirstLineIndent"
               />
               <span>첫줄 들여쓰기 사용</span>
             </label>
           </div>
-          <div class="setting-row-full" v-if="settingsStore.useFirstLineIndent">
+          <div class="setting-row-full" v-if="useFirstLineIndent">
             <input
               type="range"
-              v-model.number="settingsStore.firstLineIndent"
+              v-model.number="firstLineIndent"
               min="0"
               max="4"
               step="0.5"
               class="setting-slider"
             />
-            <span class="setting-value">{{ settingsStore.firstLineIndent.toFixed(1) }}em</span>
+            <span class="setting-value">{{ firstLineIndent.toFixed(1) }}em</span>
           </div>
           <div 
             class="setting-preview first-line-preview" 
             :style="{ 
-              textIndent: settingsStore.useFirstLineIndent ? `${settingsStore.firstLineIndent}em` : '0'
+              textIndent: useFirstLineIndent ? `${firstLineIndent}em` : '0'
             }"
           >
             <p>첫줄 들여쓰기 미리보기입니다. 이 문단은 설정된 값만큼 첫 번째 줄이 들여쓰기됩니다.</p>

@@ -9,7 +9,7 @@ import TextAlign from '@tiptap/extension-text-align'
 import { Indent } from './extensions/Indent'
 import { LineHighlight } from './extensions/LineHighlight'
 import { CustomHorizontalRule } from './extensions/CustomHorizontalRule'
-import { Bubble } from './extensions/Bubble'
+import { CustomBlockquote } from './extensions/CustomBlockquote'
 import { useProjectStore } from '@/stores/project'
 import { useSettingsStore } from '@/stores/settings'
 import Toolbar from './Toolbar.vue'
@@ -39,7 +39,8 @@ const editor = useEditor({
       heading: {
         levels: [1, 2, 3]
       },
-      horizontalRule: false
+      horizontalRule: false,
+      blockquote: false
     }),
     Placeholder.configure({
       placeholder: '이야기를 시작하세요...'
@@ -52,7 +53,7 @@ const editor = useEditor({
     Indent,
     LineHighlight,
     CustomHorizontalRule,
-    Bubble
+    CustomBlockquote
   ],
   editorProps: {
     attributes: {
@@ -269,19 +270,6 @@ onUnmounted(() => {
   text-decoration: underline;
 }
 
-:deep(.prose-editor blockquote) {
-  border-left: 3px solid var(--border-color);
-  padding-left: 1em;
-  margin: 1em 0;
-  color: var(--text-secondary);
-  font-style: italic;
-  text-indent: 0;
-}
-
-:deep(.prose-editor blockquote p) {
-  text-indent: 0;
-}
-
 :deep(.prose-editor ul),
 :deep(.prose-editor ol) {
   padding-left: 1.5em;
@@ -342,8 +330,62 @@ onUnmounted(() => {
   letter-spacing: 0.3em;
 }
 
-/* 말풍선 스타일 */
-:deep(.prose-editor .bubble) {
+/* 인용 스타일 - 기본 (세로선) */
+:deep(.prose-editor .blockquote) {
+  margin: 1em 0;
+  text-indent: 0;
+}
+
+:deep(.prose-editor .blockquote-line) {
+  border-left: 3px solid var(--border-color);
+  padding-left: 1em;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* 인용 스타일 - 큰따옴표 */
+:deep(.prose-editor .blockquote-quote) {
+  position: relative;
+  padding: 1.5em 2em;
+  font-style: italic;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+:deep(.prose-editor .blockquote-quote)::before {
+  content: '"';
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: 3em;
+  line-height: 1;
+  color: var(--border-color);
+  font-family: Georgia, serif;
+}
+
+:deep(.prose-editor .blockquote-quote)::after {
+  content: '"';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  font-size: 3em;
+  line-height: 0.5;
+  color: var(--border-color);
+  font-family: Georgia, serif;
+}
+
+/* 인용 스타일 - 박스 */
+:deep(.prose-editor .blockquote-box) {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1em 1.25em;
+  color: var(--text-secondary);
+}
+
+/* 인용 스타일 - 말풍선 공통 */
+:deep(.prose-editor .blockquote-bubble-left),
+:deep(.prose-editor .blockquote-bubble-right) {
   display: block;
   max-width: 70%;
   padding: 0.75em 1em;
@@ -353,16 +395,17 @@ onUnmounted(() => {
   position: relative;
   clear: both;
   color: #000;
+  font-style: normal;
 }
 
-:deep(.prose-editor .bubble-left) {
+:deep(.prose-editor .blockquote-bubble-left) {
   background: #e9e9eb;
   float: left;
   border-bottom-left-radius: 0.3em;
   margin-right: auto;
 }
 
-:deep(.prose-editor .bubble-right) {
+:deep(.prose-editor .blockquote-bubble-right) {
   background: #a8d4ff;
   float: right;
   border-bottom-right-radius: 0.3em;
@@ -370,20 +413,22 @@ onUnmounted(() => {
 }
 
 /* 말풍선 뒤 클리어 */
-:deep(.prose-editor .bubble + *) {
+:deep(.prose-editor .blockquote-bubble-left + *),
+:deep(.prose-editor .blockquote-bubble-right + *) {
   clear: both;
 }
 
-/* 다크 모드 말풍선 */
-[data-theme="dark"] :deep(.prose-editor .bubble) {
+/* 다크 모드 인용 */
+[data-theme="dark"] :deep(.prose-editor .blockquote-bubble-left),
+[data-theme="dark"] :deep(.prose-editor .blockquote-bubble-right) {
   color: #fff;
 }
 
-[data-theme="dark"] :deep(.prose-editor .bubble-left) {
+[data-theme="dark"] :deep(.prose-editor .blockquote-bubble-left) {
   background: #3a3a3c;
 }
 
-[data-theme="dark"] :deep(.prose-editor .bubble-right) {
+[data-theme="dark"] :deep(.prose-editor .blockquote-bubble-right) {
   background: #2a5a8a;
 }
 

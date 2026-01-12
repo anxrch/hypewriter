@@ -25,8 +25,7 @@ import {
   SpellCheck,
   Keyboard,
   Highlighter,
-  ChevronDown,
-  MessageCircle
+  ChevronDown
 } from 'lucide-vue-next'
 
 const props = defineProps<{
@@ -41,7 +40,7 @@ const settingsStore = useSettingsStore()
 const showFontSelector = ref(false)
 const showExportModal = ref(false)
 const showDividerMenu = ref(false)
-const showBubbleMenu = ref(false)
+const showQuoteMenu = ref(false)
 
 const dividerTypes = [
   { type: 'solid', label: '실선', preview: '───────' },
@@ -53,34 +52,47 @@ const dividerTypes = [
   { type: 'wave', label: '물결', preview: '～～～' }
 ]
 
+const quoteTypes = [
+  { type: 'line', label: '세로선', icon: '│' },
+  { type: 'quote', label: '따옴표', icon: '❝❞' },
+  { type: 'box', label: '박스', icon: '▢' },
+  { type: 'bubble-left', label: '말풍선 (왼쪽)', icon: '◁' },
+  { type: 'bubble-right', label: '말풍선 (오른쪽)', icon: '▷' }
+]
+
 function insertDivider(type: string) {
   props.editor?.chain().focus().setHorizontalRule(type).run()
   showDividerMenu.value = false
 }
 
-function insertBubble(position: 'left' | 'right') {
-  props.editor?.chain().focus().insertBubble(position).run()
-  showBubbleMenu.value = false
+function insertQuote(type: string) {
+  props.editor?.chain().focus().setBlockquote(type).run()
+  showQuoteMenu.value = false
 }
 
-function removeBubble() {
-  props.editor?.chain().focus().removeBubble().run()
-  showBubbleMenu.value = false
+function removeQuote() {
+  props.editor?.chain().focus().unsetBlockquote().run()
+  showQuoteMenu.value = false
 }
 
 function isActive(name: string, attrs?: object): boolean {
   return props.editor?.isActive(name, attrs) ?? false
 }
 
-function isInBubble(): boolean {
+function isInBlockquote(): boolean {
   if (!props.editor) return false
   const { $from } = props.editor.state.selection
   for (let depth = $from.depth; depth > 0; depth--) {
-    if ($from.node(depth).type.name === 'bubble') {
+    if ($from.node(depth).type.name === 'blockquote') {
       return true
     }
   }
   return false
+}
+
+function closeAllMenus() {
+  showDividerMenu.value = false
+  showQuoteMenu.value = false
 }
 </script>
 
@@ -206,14 +218,39 @@ function isInBubble(): boolean {
 
     <div class="toolbar-group">
       <!-- Block elements -->
-      <button
-        class="toolbar-btn"
-        :class="{ active: isActive('blockquote') }"
-        @click="editor?.chain().focus().toggleBlockquote().run()"
-        title="인용"
-      >
-        <Quote :size="18" />
-      </button>
+      
+      <!-- 인용 드롭다운 -->
+      <div class="dropdown-wrapper">
+        <button
+          class="toolbar-btn dropdown-btn"
+          :class="{ active: isInBlockquote() }"
+          @click="showQuoteMenu = !showQuoteMenu; showDividerMenu = false"
+          title="인용"
+        >
+          <Quote :size="18" />
+          <ChevronDown :size="12" />
+        </button>
+        
+        <div v-if="showQuoteMenu" class="dropdown-menu quote-menu">
+          <button
+            v-for="quote in quoteTypes"
+            :key="quote.type"
+            class="dropdown-item quote-item"
+            @click="insertQuote(quote.type)"
+          >
+            <span class="quote-icon">{{ quote.icon }}</span>
+            <span class="quote-label">{{ quote.label }}</span>
+          </button>
+          <button 
+            v-if="isInBlockquote()"
+            class="dropdown-item quote-item-remove" 
+            @click="removeQuote"
+          >
+            인용 해제
+          </button>
+        </div>
+      </div>
+
       <button
         class="toolbar-btn"
         :class="{ active: isActive('bulletList') }"
@@ -227,7 +264,7 @@ function isInBubble(): boolean {
       <div class="dropdown-wrapper">
         <button
           class="toolbar-btn dropdown-btn"
-          @click="showDividerMenu = !showDividerMenu; showBubbleMenu = false"
+          @click="showDividerMenu = !showDividerMenu; showQuoteMenu = false"
           title="구분선"
         >
           <Minus :size="18" />
@@ -243,37 +280,6 @@ function isInBubble(): boolean {
           >
             <span class="divider-preview">{{ divider.preview }}</span>
             <span class="divider-label">{{ divider.label }}</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- 말풍선 드롭다운 -->
-      <div class="dropdown-wrapper">
-        <button
-          class="toolbar-btn dropdown-btn"
-          :class="{ active: isInBubble() }"
-          @click="showBubbleMenu = !showBubbleMenu; showDividerMenu = false"
-          title="말풍선"
-        >
-          <MessageCircle :size="18" />
-          <ChevronDown :size="12" />
-        </button>
-        
-        <div v-if="showBubbleMenu" class="dropdown-menu bubble-menu">
-          <button class="dropdown-item bubble-item" @click="insertBubble('left')">
-            <span class="bubble-preview bubble-preview-left">왼쪽</span>
-            <span class="bubble-label">상대방</span>
-          </button>
-          <button class="dropdown-item bubble-item" @click="insertBubble('right')">
-            <span class="bubble-preview bubble-preview-right">오른쪽</span>
-            <span class="bubble-label">나</span>
-          </button>
-          <button 
-            v-if="isInBubble()"
-            class="dropdown-item bubble-item-remove" 
-            @click="removeBubble"
-          >
-            말풍선 해제
           </button>
         </div>
       </div>
@@ -349,9 +355,9 @@ function isInBubble(): boolean {
 
   <!-- Backdrop to close dropdowns -->
   <div 
-    v-if="showDividerMenu || showBubbleMenu" 
+    v-if="showDividerMenu || showQuoteMenu" 
     class="dropdown-backdrop"
-    @click="showDividerMenu = false; showBubbleMenu = false"
+    @click="closeAllMenus"
   />
 
   <!-- Export Modal -->
@@ -484,49 +490,32 @@ function isInBubble(): boolean {
   min-width: 2.5rem;
 }
 
-/* 말풍선 메뉴 */
-.bubble-menu {
-  min-width: 140px;
+/* 인용 메뉴 */
+.quote-menu {
+  min-width: 180px;
 }
 
-.bubble-item {
-  justify-content: space-between;
+.quote-item {
+  justify-content: flex-start;
 }
 
-.bubble-preview {
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.8em;
-  font-size: 0.75rem;
-}
-
-.bubble-preview-left {
-  background: #e9e9eb;
-  color: #000;
-  border-bottom-left-radius: 0.2em;
-}
-
-.bubble-preview-right {
-  background: #007aff;
-  color: #fff;
-  border-bottom-right-radius: 0.2em;
-}
-
-.bubble-label {
-  font-size: 0.8rem;
+.quote-icon {
+  width: 24px;
+  text-align: center;
+  font-size: 1rem;
   color: var(--text-muted);
 }
 
-.bubble-item-remove {
+.quote-label {
+  font-size: 0.85rem;
+}
+
+.quote-item-remove {
   justify-content: center;
   color: var(--text-muted);
   font-size: 0.8rem;
   border-top: 1px solid var(--border-color);
   margin-top: 0.25rem;
   padding-top: 0.5rem;
-}
-
-[data-theme="dark"] .bubble-preview-left {
-  background: #3a3a3c;
-  color: #fff;
 }
 </style>

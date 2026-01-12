@@ -1,6 +1,6 @@
 {
   "name": "hypewriter",
-  "version": "0.0.6",
+  "version": "0.1.0",
   "description": "A writing tool for authors with custom fonts, typewriter mode, and footnotes",
   "type": "module",
   "scripts": {

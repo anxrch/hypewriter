@@ -1,13 +1,18 @@
 use font_kit::source::SystemSource;
 use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
-use std::io::{BufWriter, Read};
+use std::path::PathBuf;
 
 // DOCX
 use docx_rs::*;
 
-// PDF
-use printpdf::*;
+// Typst
+use typst::diag::{FileError, FileResult};
+use typst::foundations::{Bytes, Datetime};
+use typst::syntax::{FileId, Source};
+use typst::text::{Font, FontBook};
+use typst::utils::LazyHash;
+use typst::{Library, World};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FontInfo {
@@ -37,6 +42,127 @@ pub struct FootnoteContent {
     pub marker: String,
     pub content: String,
 }
+
+// ============ Typst World Implementation ============
+
+struct HypewriterWorld {
+    library: LazyHash<Library>,
+    book: LazyHash<FontBook>,
+    source: Source,
+    fonts: Vec<Font>,
+    primary_font_name: Option<String>,
+}
+
+impl HypewriterWorld {
+    fn new(content: String, font_path: Option<&str>) -> Self {
+        let (fonts, primary_font_name) = Self::load_fonts(font_path);
+        let book = FontBook::from_fonts(&fonts);
+        
+        Self {
+            library: LazyHash::new(Library::builder().build()),
+            book: LazyHash::new(book),
+            source: Source::detached(content),
+            fonts,
+            primary_font_name,
+        }
+    }
+    
+    fn load_fonts(primary_font_path: Option<&str>) -> (Vec<Font>, Option<String>) {
+        let mut fonts = Vec::new();
+        let mut primary_font_name = None;
+        
+        // 선택된 폰트를 먼저 로드
+        if let Some(path) = primary_font_path {
+            if !path.is_empty() && std::path::Path::new(path).exists() {
+                if let Ok(data) = fs::read(path) {
+                    let buffer = Bytes::from(data);
+                    for font in Font::iter(buffer) {
+                        if primary_font_name.is_none() {
+                            // 첫 번째 폰트의 이름을 저장
+                            primary_font_name = font.info().family.clone().into();
+                        }
+                        fonts.push(font);
+                    }
+                }
+            }
+        }
+        
+        // Windows 폰트 디렉토리
+        let font_dirs = vec![
+            PathBuf::from(r"C:\Windows\Fonts"),
+            dirs::font_dir().unwrap_or_default(),
+        ];
+        
+        for font_dir in &font_dirs {
+            if !font_dir.exists() {
+                continue;
+            }
+            
+            if let Ok(entries) = fs::read_dir(font_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+                    
+                    if ext.eq_ignore_ascii_case("ttf") || ext.eq_ignore_ascii_case("otf") || ext.eq_ignore_ascii_case("ttc") {
+                        if let Ok(data) = fs::read(&path) {
+                            let buffer = Bytes::from(data);
+                            for font in Font::iter(buffer) {
+                                fonts.push(font);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        (fonts, primary_font_name)
+    }
+    
+    fn get_primary_font_name(&self) -> &str {
+        self.primary_font_name.as_deref().unwrap_or("Malgun Gothic")
+    }
+}
+
+impl World for HypewriterWorld {
+    fn library(&self) -> &LazyHash<Library> {
+        &self.library
+    }
+    
+    fn book(&self) -> &LazyHash<FontBook> {
+        &self.book
+    }
+    
+    fn main(&self) -> FileId {
+        self.source.id()
+    }
+    
+    fn source(&self, id: FileId) -> FileResult<Source> {
+        if id == self.source.id() {
+            Ok(self.source.clone())
+        } else {
+            Err(FileError::NotFound(id.vpath().as_rootless_path().into()))
+        }
+    }
+    
+    fn file(&self, id: FileId) -> FileResult<Bytes> {
+        Err(FileError::NotFound(id.vpath().as_rootless_path().into()))
+    }
+    
+    fn font(&self, index: usize) -> Option<Font> {
+        self.fonts.get(index).cloned()
+    }
+    
+    fn today(&self, _offset: Option<i64>) -> Option<Datetime> {
+        let now = chrono::Local::now();
+        Datetime::from_ymd(
+            now.format("%Y").to_string().parse().ok()?,
+            now.format("%m").to_string().parse().ok()?,
+            now.format("%d").to_string().parse().ok()?,
+        )
+    }
+}
+
+// ============ Font Discovery ============
 
 #[tauri::command]
 fn get_system_fonts() -> Result<Vec<FontInfo>, String> {
@@ -80,55 +206,7 @@ fn get_system_fonts() -> Result<Vec<FontInfo>, String> {
     Ok(fonts)
 }
 
-fn find_fallback_font_path() -> Option<String> {
-    let source = SystemSource::new();
-    
-    let fallback_fonts = [
-        "Malgun Gothic",
-        "맑은 고딕", 
-        "NanumGothic",
-        "나눔고딕",
-        "Noto Sans KR",
-        "Pretendard",
-    ];
-    
-    for fallback in fallback_fonts {
-        if let Ok(handle) = source.select_family_by_name(fallback) {
-            if let Some(font) = handle.fonts().first() {
-                if let font_kit::handle::Handle::Path { path, .. } = font {
-                    let path_str = path.to_string_lossy().to_string();
-                    let lower = path_str.to_lowercase();
-                    if lower.ends_with(".ttf") || lower.ends_with(".otf") {
-                        return Some(path_str);
-                    }
-                }
-            }
-        }
-    }
-    
-    let windows_fonts = [
-        r"C:\Windows\Fonts\malgun.ttf",
-        r"C:\Windows\Fonts\NanumGothic.ttf",
-    ];
-    
-    for font_path in windows_fonts {
-        if std::path::Path::new(font_path).exists() {
-            return Some(font_path.to_string());
-        }
-    }
-    
-    None
-}
-
-fn is_valid_font_path(path: &str) -> bool {
-    if path.is_empty() {
-        return false;
-    }
-    let lower = path.to_lowercase();
-    let has_valid_ext = lower.ends_with(".ttf") || lower.ends_with(".otf");
-    let exists = std::path::Path::new(path).exists();
-    has_valid_ext && exists
-}
+// ============ File Operations ============
 
 #[tauri::command]
 fn read_project_file(path: String) -> Result<String, String> {
@@ -140,47 +218,32 @@ fn write_project_file(path: String, content: String) -> Result<(), String> {
     fs::write(&path, content).map_err(|e| format!("Failed to write file: {}", e))
 }
 
+// ============ DOCX Export ============
+
 #[tauri::command]
 fn export_to_docx(path: String, content: ExportContent) -> Result<(), String> {
     let mut docx = Docx::new();
 
-    // Title
     docx = docx.add_paragraph(
         Paragraph::new()
-            .add_run(
-                Run::new()
-                    .add_text(&content.title)
-                    .size(48)
-                    .bold()
-            )
-            .align(AlignmentType::Center)
+            .add_run(Run::new().add_text(&content.title).size(48).bold())
+            .align(AlignmentType::Center),
     );
 
-    // Author
     if !content.author.is_empty() {
         docx = docx.add_paragraph(
             Paragraph::new()
-                .add_run(
-                    Run::new()
-                        .add_text(&content.author)
-                        .size(24)
-                )
-                .align(AlignmentType::Center)
+                .add_run(Run::new().add_text(&content.author).size(24))
+                .align(AlignmentType::Center),
         );
     }
 
     docx = docx.add_paragraph(Paragraph::new());
 
-    // Chapters
     for chapter in &content.chapters {
         docx = docx.add_paragraph(
             Paragraph::new()
-                .add_run(
-                    Run::new()
-                        .add_text(&chapter.title)
-                        .size(36)
-                        .bold()
-                )
+                .add_run(Run::new().add_text(&chapter.title).size(36).bold()),
         );
 
         for line in chapter.content.lines() {
@@ -191,6 +254,7 @@ fn export_to_docx(path: String, content: ExportContent) -> Result<(), String> {
                 docx = docx.add_paragraph(
                     Paragraph::new()
                         .add_run(Run::new().add_text(trimmed).size(22))
+                        .align(AlignmentType::Both),
                 );
             }
         }
@@ -198,25 +262,21 @@ fn export_to_docx(path: String, content: ExportContent) -> Result<(), String> {
         if !chapter.footnotes.is_empty() {
             docx = docx.add_paragraph(Paragraph::new());
             docx = docx.add_paragraph(
-                Paragraph::new()
-                    .add_run(Run::new().add_text("───────────").size(20))
+                Paragraph::new().add_run(Run::new().add_text("───────────").size(20)),
             );
 
             for footnote in &chapter.footnotes {
                 docx = docx.add_paragraph(
-                    Paragraph::new()
-                        .add_run(
-                            Run::new()
-                                .add_text(&format!("{} {}", footnote.marker, footnote.content))
-                                .size(18)
-                        )
+                    Paragraph::new().add_run(
+                        Run::new()
+                            .add_text(&format!("{}) {}", footnote.marker, footnote.content))
+                            .size(18),
+                    ),
                 );
             }
         }
 
-        docx = docx.add_paragraph(
-            Paragraph::new().page_break_before(true)
-        );
+        docx = docx.add_paragraph(Paragraph::new().page_break_before(true));
     }
 
     let file = File::create(&path).map_err(|e| format!("Failed to create file: {}", e))?;
@@ -227,174 +287,147 @@ fn export_to_docx(path: String, content: ExportContent) -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
-fn export_to_pdf(path: String, content: ExportContent) -> Result<(), String> {
-    // A4 size: 210mm x 297mm
-    let page_width = 210.0;
-    let page_height = 297.0;
+// ============ PDF Export with Typst ============
+
+fn escape_typst(text: &str) -> String {
+    text.replace("\\", "\\\\")
+        .replace("#", "\\#")
+        .replace("$", "\\$")
+        .replace("@", "\\@")
+        .replace("<", "\\<")
+        .replace(">", "\\>")
+        .replace("[", "\\[")
+        .replace("]", "\\]")
+        .replace("*", "\\*")
+        .replace("_", "\\_")
+        .replace("`", "\\`")
+}
+
+fn generate_typst_markup(content: &ExportContent, primary_font: &str) -> String {
+    let mut markup = String::new();
     
-    // 여백 설정 (좌우 균형)
-    let margin_left = 30.0;   // 왼쪽 여백
-    let margin_right = 30.0;  // 오른쪽 여백
-    let margin_top = 27.0;    // 위쪽 여백 (페이지 상단에서 시작 위치)
-    let margin_bottom = 25.0; // 아래쪽 여백
-    
-    // 텍스트 영역 너비: 210 - 30 - 30 = 150mm
-    let text_width = page_width - margin_left - margin_right;
-    
-    let (doc, page1, layer1) = PdfDocument::new(
-        &content.title,
-        Mm(page_width),
-        Mm(page_height),
-        "Layer 1",
-    );
+    markup.push_str(&format!(r#"
+#set page(
+  paper: "a4",
+  margin: (top: 2.5cm, bottom: 2.5cm, left: 3cm, right: 3cm),
+)
 
-    let font_path = content.font_path
-        .as_ref()
-        .filter(|p| is_valid_font_path(p))
-        .cloned()
-        .or_else(find_fallback_font_path);
+#set text(
+  font: ("{}", "Malgun Gothic", "NanumGothic", "Noto Sans CJK KR"),
+  size: 11pt,
+  lang: "ko",
+)
 
-    let (font, font_bold) = if let Some(ref fp) = font_path {
-        let mut font_file = File::open(fp)
-            .map_err(|e| format!("Failed to open font file '{}': {}", fp, e))?;
-        let mut font_data = Vec::new();
-        font_file.read_to_end(&mut font_data)
-            .map_err(|e| format!("Failed to read font file: {}", e))?;
-        
-        let font = doc.add_external_font(&*font_data)
-            .map_err(|e| format!("Failed to add font: {}", e))?;
-        
-        (font.clone(), font)
-    } else {
-        let font = doc.add_builtin_font(BuiltinFont::Helvetica)
-            .map_err(|e| format!("Failed to add font: {}", e))?;
-        let font_bold = doc.add_builtin_font(BuiltinFont::HelveticaBold)
-            .map_err(|e| format!("Failed to add bold font: {}", e))?;
-        (font, font_bold)
-    };
+#set par(
+  justify: true,
+  leading: 0.9em,
+  first-line-indent: 1em,
+)
 
-    let mut current_layer = doc.get_page(page1).get_layer(layer1);
-    let mut y_position = page_height - margin_top; // 위에서부터 시작
-    let line_height = 6.0;
+#show heading.where(level: 1): it => {{
+  pagebreak(weak: true)
+  set text(size: 18pt, weight: "bold")
+  set par(first-line-indent: 0pt)
+  v(1em)
+  it
+  v(0.5em)
+}}
 
-    let add_new_page = |doc: &PdfDocumentReference| -> PdfLayerReference {
-        let (page, layer) = doc.add_page(Mm(page_width), Mm(page_height), "Layer 1");
-        doc.get_page(page).get_layer(layer)
-    };
+#show heading.where(level: 2): it => {{
+  set text(size: 14pt, weight: "bold")
+  set par(first-line-indent: 0pt)
+  v(0.8em)
+  it
+  v(0.3em)
+}}
 
-    // 한글 기준 한 줄에 들어갈 수 있는 대략적인 글자 수 (11pt 기준, 150mm 너비)
-    // 한글 한 글자 ≈ 3.5~4mm, 150mm / 3.8mm ≈ 39자
-    let max_chars = 38;
+"#, primary_font));
 
-    // Title (중앙 정렬)
-    let title_x = margin_left + (text_width / 2.0) - ((content.title.chars().count() as f32 * 6.0) / 2.0);
-    current_layer.use_text(&content.title, 24.0, Mm(title_x.max(margin_left)), Mm(y_position), &font_bold);
-    y_position -= 15.0;
+    markup.push_str(&format!(r#"
+#align(center)[
+  #v(30%)
+  #text(size: 28pt, weight: "bold")[{}]
+  #v(1em)
+  #text(size: 14pt)[{}]
+  #v(40%)
+]
 
-    // Author (중앙 정렬)
-    if !content.author.is_empty() {
-        let author_x = margin_left + (text_width / 2.0) - ((content.author.chars().count() as f32 * 3.0) / 2.0);
-        current_layer.use_text(&content.author, 12.0, Mm(author_x.max(margin_left)), Mm(y_position), &font);
-        y_position -= 10.0;
-    }
+#pagebreak()
 
-    y_position -= 15.0;
+"#, escape_typst(&content.title), escape_typst(&content.author)));
 
-    // Chapters
     for chapter in &content.chapters {
-        if y_position < margin_bottom + 30.0 {
-            current_layer = add_new_page(&doc);
-            y_position = page_height - margin_top;
-        }
-
-        // Chapter title
-        current_layer.use_text(&chapter.title, 16.0, Mm(margin_left), Mm(y_position), &font_bold);
-        y_position -= 12.0;
-
+        markup.push_str(&format!("= {}\n\n", escape_typst(&chapter.title)));
+        
         for line in chapter.content.lines() {
             let trimmed = line.trim();
-            
-            if y_position < margin_bottom {
-                current_layer = add_new_page(&doc);
-                y_position = page_height - margin_top;
-            }
-
             if trimmed.is_empty() {
-                y_position -= line_height / 2.0;
+                markup.push_str("\n");
             } else {
-                let mut remaining = trimmed;
-                
-                while !remaining.is_empty() {
-                    if y_position < margin_bottom {
-                        current_layer = add_new_page(&doc);
-                        y_position = page_height - margin_top;
-                    }
-
-                    let (chunk, rest) = if remaining.chars().count() <= max_chars {
-                        (remaining, "")
-                    } else {
-                        let char_indices: Vec<_> = remaining.char_indices().collect();
-                        let mut split_at = max_chars;
-                        
-                        // 단어 경계에서 줄바꿈
-                        for i in (0..max_chars.min(char_indices.len())).rev() {
-                            if let Some((_, c)) = char_indices.get(i) {
-                                if *c == ' ' || *c == ',' || *c == '.' || *c == '。' || *c == '，' || *c == '!' || *c == '?' {
-                                    split_at = i + 1;
-                                    break;
-                                }
-                            }
-                        }
-                        
-                        if split_at < char_indices.len() {
-                            let byte_idx = char_indices[split_at].0;
-                            (&remaining[..byte_idx], &remaining[byte_idx..])
-                        } else {
-                            (remaining, "")
-                        }
-                    };
-
-                    current_layer.use_text(chunk.trim(), 11.0, Mm(margin_left), Mm(y_position), &font);
-                    y_position -= line_height;
-                    remaining = rest.trim();
-                }
+                markup.push_str(&escape_typst(trimmed));
+                markup.push_str("\n\n");
             }
         }
-
-        // Footnotes
+        
         if !chapter.footnotes.is_empty() {
-            y_position -= 8.0;
+            markup.push_str("\n#v(1em)\n#line(length: 30%, stroke: 0.5pt)\n#v(0.5em)\n\n");
+            markup.push_str("#set text(size: 9pt)\n");
+            markup.push_str("#set par(first-line-indent: 0pt, hanging-indent: 1.5em)\n\n");
             
-            if y_position < margin_bottom + 20.0 {
-                current_layer = add_new_page(&doc);
-                y_position = page_height - margin_top;
-            }
-
-            current_layer.use_text("─────────────────", 10.0, Mm(margin_left), Mm(y_position), &font);
-            y_position -= line_height;
-
             for footnote in &chapter.footnotes {
-                if y_position < margin_bottom {
-                    current_layer = add_new_page(&doc);
-                    y_position = page_height - margin_top;
-                }
-
-                let footnote_text = format!("{} {}", footnote.marker, footnote.content);
-                current_layer.use_text(&footnote_text, 9.0, Mm(margin_left), Mm(y_position), &font);
-                y_position -= line_height * 0.9;
+                markup.push_str(&format!(
+                    "{}) {}\n\n",
+                    escape_typst(&footnote.marker),
+                    escape_typst(&footnote.content)
+                ));
             }
+            
+            markup.push_str("#set text(size: 11pt)\n");
+            markup.push_str("#set par(first-line-indent: 1em, hanging-indent: 0pt)\n");
         }
-
-        y_position -= 20.0;
+        
+        markup.push_str("\n");
     }
+    
+    markup
+}
 
-    doc.save(&mut BufWriter::new(
-        File::create(&path).map_err(|e| format!("Failed to create PDF: {}", e))?
-    )).map_err(|e| format!("Failed to save PDF: {}", e))?;
-
+#[tauri::command]
+fn export_to_pdf(path: String, content: ExportContent) -> Result<(), String> {
+    // 폰트 경로를 전달하여 World 생성
+    let font_path = content.font_path.as_deref();
+    let world = HypewriterWorld::new(String::new(), font_path);
+    
+    // 실제 로드된 폰트 이름 가져오기
+    let primary_font = world.get_primary_font_name().to_string();
+    
+    // Typst 마크업 생성
+    let typst_content = generate_typst_markup(&content, &primary_font);
+    
+    // 새 World 생성 (마크업 포함)
+    let world = HypewriterWorld::new(typst_content, font_path);
+    
+    let result = typst::compile(&world);
+    
+    let document = result.output.map_err(|errors| {
+        let error_msgs: Vec<String> = errors
+            .iter()
+            .map(|e| e.message.to_string())
+            .collect();
+        format!("Typst compilation error: {}", error_msgs.join(", "))
+    })?;
+    
+    let pdf_bytes = typst_pdf::pdf(&document, &typst_pdf::PdfOptions::default())
+        .map_err(|errors| {
+            format!("PDF generation error: {:?}", errors)
+        })?;
+    
+    fs::write(&path, pdf_bytes).map_err(|e| format!("Failed to write PDF: {}", e))?;
+    
     Ok(())
 }
+
+// ============ Tauri Entry Point ============
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
