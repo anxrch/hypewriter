@@ -1,27 +1,62 @@
+```
+# Build outputs
+src-tauri/target/
+src-tauri/bundle/
+
 # Dependencies
 node_modules/
+.pnpm-store/
+.yarn/
+.yarnrc
 
-# Build outputs
-dist/
-target/
+# Environment variables
+.env
+.env.local
+.env.*
 
-# IDE
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Editor files
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
 *.log
-npm-debug.log*
+.git/
+.mypy_cache/
+.pytest_cache/
+.hypothesis/
 
-# Environment
-.env
-.env.local
+# Rust (for Tauri)
+target/
+Cargo.lock
+Cargo.toml.orig
 
-# Tauri
-src-tauri/target/
+# Temporary files
+*.tmp
+*.temp
+```
