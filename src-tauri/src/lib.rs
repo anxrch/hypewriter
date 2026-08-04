@@ -87,12 +87,23 @@ impl HypewriterWorld {
             }
         }
         
-        // Windows 폰트 디렉토리
-        let font_dirs = vec![
-            PathBuf::from(r"C:\Windows\Fonts"),
-            dirs::font_dir().unwrap_or_default(),
-        ];
-        
+        // 플랫폼별 시스템 폰트 디렉토리 + 사용자 폰트 디렉토리
+        let mut font_dirs: Vec<PathBuf> = Vec::new();
+        #[cfg(target_os = "windows")]
+        font_dirs.push(PathBuf::from(r"C:\Windows\Fonts"));
+        #[cfg(target_os = "macos")]
+        {
+            font_dirs.push(PathBuf::from("/System/Library/Fonts"));
+            font_dirs.push(PathBuf::from("/Library/Fonts"));
+        }
+        #[cfg(target_os = "linux")]
+        {
+            font_dirs.push(PathBuf::from("/usr/share/fonts"));
+            font_dirs.push(PathBuf::from("/usr/local/share/fonts"));
+        }
+        if let Some(d) = dirs::font_dir() {
+            font_dirs.push(d);
+        }
         for font_dir in &font_dirs {
             if !font_dir.exists() {
                 continue;

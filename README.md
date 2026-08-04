@@ -34,6 +34,26 @@ npm run tauri dev
 npm run tauri build
 ```
 
+### OS별 시스템 의존성 (로컬 빌드)
+
+Tauri 2와 font-kit가 네이티브 라이브러리를 사용하므로, 로컬에서 빌드하려면 OS별 시스템 패키지가 필요합니다.
+
+**Linux (Debian/Ubuntu 계열)**
+
+```bash
+sudo apt-get install -y \
+  libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
+  librsvg2-dev patchelf libfreetype-dev libfontconfig1-dev
+```
+
+**macOS**: Xcode Command Line Tools만 있으면 충분합니다.
+
+```bash
+xcode-select --install
+```
+
+**Windows**: Microsoft C++ Build Tools (MSVC)가 필요합니다. Rustup이 자동으로 MSVC 툴체인을 선택합니다.
+
 ## 기술 스택
 
 - **Frontend**: Vue 3, TypeScript, Vite, Tiptap, Pinia
