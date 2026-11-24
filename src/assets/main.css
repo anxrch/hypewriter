@@ -1,3 +1,14 @@
+/* 기본 본문 폰트를 앱에 동봉한다. 시스템에 Pretendard가 없어도 같은 글꼴로 보이고,
+   block으로 두어 폰트가 늦게 떠도 대체 폰트로 한 번 그렸다가 줄바꿈이 바뀌는 일이 없다. */
+@font-face {
+  font-family: 'Pretendard';
+  src: url('./fonts/PretendardVariable.woff2') format('woff2-variations'),
+       url('./fonts/PretendardVariable.woff2') format('woff2');
+  font-weight: 45 930;
+  font-style: normal;
+  font-display: block;
+}
+
 :root {
   /* Light theme */
   --bg-primary: #ffffff;
@@ -35,9 +46,18 @@
   box-sizing: border-box;
 }
 
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-optical-sizing: auto;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 html, body, #app {
   height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-color: var(--bg-primary);
   color: var(--text-primary);
 }
@@ -72,21 +92,23 @@ html, body, #app {
   outline-offset: 2px;
 }
 
-/* Button reset */
+/* Form reset: 폼 요소는 브라우저 기본 글꼴·크기를 따로 쓰므로 부모 값을 물려받게 한다 */
+button, input, textarea, select {
+  font: inherit;
+  letter-spacing: inherit;
+  text-rendering: inherit;
+  color: inherit;
+}
+
 button {
   border: none;
   background: none;
   cursor: pointer;
-  font-family: inherit;
-  color: inherit;
 }
 
-/* Input reset */
 input, textarea {
   border: none;
   background: none;
-  font-family: inherit;
-  color: inherit;
 }
 
 input:focus, textarea:focus {

@@ -8,6 +8,12 @@ export interface FontInfo {
   path: string
 }
 
+// normal: 한글은 글자 단위로, 영문 단어는 통째로 끊는다(워드프로세서식)
+// keep-all: 띄어쓰기(어절) 단위로만 끊는다
+export const BUNDLED_FONT = 'Pretendard'
+
+export type WordBreak = 'normal' | 'keep-all'
+
 export const useSettingsStore = defineStore('settings', () => {
   const theme = ref<'light' | 'dark'>('light')
   const typewriterMode = ref(false)
@@ -25,6 +31,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const editorWidth = ref(700)
   const firstLineIndent = ref(1)
   const useFirstLineIndent = ref(true)
+  const wordBreak = ref<WordBreak>('normal')
 
   function loadSettings() {
     const saved = localStorage.getItem('hypewriter-settings')
@@ -42,6 +49,7 @@ export const useSettingsStore = defineStore('settings', () => {
       editorWidth.value = parsed.editorWidth || 700
       firstLineIndent.value = parsed.firstLineIndent ?? 1
       useFirstLineIndent.value = parsed.useFirstLineIndent ?? true
+      wordBreak.value = parsed.wordBreak === 'keep-all' ? 'keep-all' : 'normal'
     }
   }
 
@@ -58,14 +66,15 @@ export const useSettingsStore = defineStore('settings', () => {
       editorLetterSpacing: editorLetterSpacing.value,
       editorWidth: editorWidth.value,
       firstLineIndent: firstLineIndent.value,
-      useFirstLineIndent: useFirstLineIndent.value
+      useFirstLineIndent: useFirstLineIndent.value,
+      wordBreak: wordBreak.value
     }))
   }
 
   watch([
     theme, typewriterMode, lineHighlight, spellCheck, editorFont, editorFontPath,
     editorFontSize, editorLineHeight, editorLetterSpacing, editorWidth, 
-    firstLineIndent, useFirstLineIndent
+    firstLineIndent, useFirstLineIndent, wordBreak
   ], () => {
     saveSettings()
   })
@@ -122,6 +131,11 @@ export const useSettingsStore = defineStore('settings', () => {
     isLoadingFonts.value = true
     try {
       const fonts = await invoke<FontInfo[]>('get_system_fonts')
+      // Pretendard는 앱에 동봉돼 있어 설치 여부와 상관없이 쓸 수 있다
+      // (화면은 @font-face, PDF는 바이너리에 내장된 OTF)
+      if (!fonts.some(f => f.family === BUNDLED_FONT)) {
+        fonts.unshift({ family: BUNDLED_FONT, fullName: `${BUNDLED_FONT} (내장)`, path: '' })
+      }
       availableFonts.value = fonts
       ensureFontPath()
     } catch (error) {
@@ -174,6 +188,7 @@ export const useSettingsStore = defineStore('settings', () => {
     editorWidth,
     firstLineIndent,
     useFirstLineIndent,
+    wordBreak,
     toggleTheme,
     toggleTypewriterMode,
     toggleLineHighlight,

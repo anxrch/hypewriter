@@ -58,7 +58,9 @@ const editor = useEditor({
   editorProps: {
     attributes: {
       class: 'prose-editor',
-      spellcheck: settingsStore.spellCheck ? 'true' : 'false'
+      spellcheck: settingsStore.spellCheck ? 'true' : 'false',
+      autocorrect: 'off',
+      autocapitalize: 'off'
     }
   },
   onUpdate: ({ editor }) => {
@@ -69,10 +71,11 @@ const editor = useEditor({
     }
     
     updateCharCount()
-    
-    if (settingsStore.typewriterMode) {
-      scrollToCursor()
-    }
+    scheduleTypewriterScroll()
+  },
+  // 방향키·클릭으로 커서만 옮겨도 타자기 모드가 따라오게 한다
+  onSelectionUpdate: () => {
+    scheduleTypewriterScroll()
   },
   onCreate: () => {
     updateCharCount()
@@ -85,7 +88,9 @@ watch(() => settingsStore.spellCheck, (newValue) => {
       editorProps: {
         attributes: {
           class: 'prose-editor',
-          spellcheck: newValue ? 'true' : 'false'
+          spellcheck: newValue ? 'true' : 'false',
+          autocorrect: 'off',
+          autocapitalize: 'off'
         }
       }
     })
@@ -96,29 +101,104 @@ watch(() => projectStore.currentChapterId, () => {
   if (editor.value && projectStore.currentChapter) {
     editor.value.commands.setContent(projectStore.currentChapter.content || '')
     updateCharCount()
+    scheduleTypewriterScroll(false)
   }
 })
 
-function scrollToCursor() {
-  if (!editorContainer.value || !editor.value) return
-  
-  const { view } = editor.value
-  const { from } = view.state.selection
-  const coords = view.coordsAtPos(from)
-  
-  const containerRect = editorContainer.value.getBoundingClientRect()
-  const centerY = containerRect.height / 2
-  const cursorY = coords.top - containerRect.top
-  
-  const scrollOffset = cursorY - centerY
-  editorContainer.value.scrollBy({
-    top: scrollOffset,
-    behavior: 'smooth'
-  })
+// ---- 타자기 모드 스크롤 ----
+// 키 입력마다 scrollBy({ behavior: 'smooth' })를 새로 걸면 빠르게 칠 때 애니메이션끼리 끊기며
+// 덜컹거린다. 한 프레임에 한 번만 목표를 계산하고, 진행 중인 애니메이션은 현재 위치에서
+// 새 목표로 이어서 짧게(150ms, ease-out cubic) 움직인다.
+const TYPEWRITER_DURATION = 150
+let scrollFrame = 0
+let animationFrame = 0
+// 마우스로 드래그해 선택하는 동안 화면이 따라 움직이면 선택이 안 되므로, 손을 뗄 때 한 번만 맞춘다
+// (스크롤바만 끌었다 놓은 경우엔 커서로 되돌아가지 않는다)
+let pointerDown = false
+let pendingWhileDown = false
+
+function handlePointerDown() {
+  pointerDown = true
+  pendingWhileDown = false
 }
 
+function handlePointerUp() {
+  if (!pointerDown) return
+  pointerDown = false
+  if (pendingWhileDown) scheduleTypewriterScroll()
+}
+
+function scheduleTypewriterScroll(animate = true) {
+  if (!settingsStore.typewriterMode) return
+  if (pointerDown) {
+    pendingWhileDown = true
+    return
+  }
+  cancelAnimationFrame(scrollFrame)
+  scrollFrame = requestAnimationFrame(() => centerCursor(animate))
+}
+
+function centerCursor(animate: boolean) {
+  const container = editorContainer.value
+  if (!container || !editor.value) return
+
+  const { view } = editor.value
+  let coords
+  try {
+    coords = view.coordsAtPos(view.state.selection.head)
+  } catch {
+    return
+  }
+
+  const containerRect = container.getBoundingClientRect()
+  const cursorCenter = (coords.top + coords.bottom) / 2 - containerRect.top
+  const offset = cursorCenter - containerRect.height / 2
+  const maxScroll = container.scrollHeight - container.clientHeight
+  const target = Math.max(0, Math.min(maxScroll, container.scrollTop + offset))
+
+  cancelAnimationFrame(animationFrame)
+  if (!animate || Math.abs(target - container.scrollTop) < 1) {
+    container.scrollTop = target
+    return
+  }
+
+  const start = container.scrollTop
+  const distance = target - start
+  const startTime = performance.now()
+
+  const step = (now: number) => {
+    const t = Math.min(1, (now - startTime) / TYPEWRITER_DURATION)
+    const eased = 1 - Math.pow(1 - t, 3)
+    container.scrollTop = start + distance * eased
+    if (t < 1) animationFrame = requestAnimationFrame(step)
+  }
+  animationFrame = requestAnimationFrame(step)
+}
+
+// 타자기 모드를 켜거나 글꼴·크기·폭이 바뀌면 줄 위치가 달라지므로 다시 맞춘다
+watch(() => settingsStore.typewriterMode, (on) => {
+  if (on) scheduleTypewriterScroll(false)
+})
+
+watch(
+  () => [settingsStore.editorFontSize, settingsStore.editorLineHeight,
+    settingsStore.editorLetterSpacing, settingsStore.editorWidth],
+  () => scheduleTypewriterScroll(false)
+)
+
+// 글꼴은 바뀐 즉시가 아니라 실제로 로드된 뒤에 재야 위치가 맞는다
+watch(() => settingsStore.editorFont, async (family) => {
+  try {
+    await document.fonts.load(`${settingsStore.editorFontSize}px "${family}"`)
+  } catch {
+    // 로드 실패 시에도 대체 글꼴 기준으로 다시 맞춘다
+  }
+  scheduleTypewriterScroll(false)
+})
+
 const editorStyles = computed(() => ({
-  fontFamily: settingsStore.editorFont,
+  fontFamily: `"${settingsStore.editorFont}", 'Pretendard', sans-serif`,
+  wordBreak: settingsStore.wordBreak,
   fontSize: `${settingsStore.editorFontSize}px`,
   lineHeight: settingsStore.editorLineHeight,
   letterSpacing: `${settingsStore.editorLetterSpacing}em`,
@@ -137,11 +217,17 @@ function handleKeydown(e: KeyboardEvent) {
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
+  window.addEventListener('pointerup', handlePointerUp)
   settingsStore.loadSystemFonts()
+  // 첫 화면은 폰트가 다 뜨기 전에 그려질 수 있다. 다 뜬 뒤 커서 위치를 다시 잰다.
+  document.fonts.ready.then(() => scheduleTypewriterScroll(false))
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('pointerup', handlePointerUp)
+  cancelAnimationFrame(scrollFrame)
+  cancelAnimationFrame(animationFrame)
 })
 </script>
 
@@ -155,6 +241,7 @@ onUnmounted(() => {
     <div 
       class="editor-container"
       ref="editorContainer"
+      @pointerdown="handlePointerDown"
       :class="{ 
         'typewriter-mode': settingsStore.typewriterMode,
         'line-highlight-enabled': settingsStore.lineHighlight
@@ -222,6 +309,8 @@ onUnmounted(() => {
 :deep(.prose-editor) {
   outline: none;
   min-height: 100%;
+  /* 줄바꿈 단위(word-break)는 설정을 따르되, 띄어쓰기 없는 긴 문자열(URL 등)은 어디서든 끊는다 */
+  overflow-wrap: break-word;
 }
 
 :deep(.prose-editor p) {

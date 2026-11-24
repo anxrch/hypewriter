@@ -1,7 +1,7 @@
 use font_kit::source::SystemSource;
 use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 // DOCX
 use docx_rs::*;
@@ -53,40 +53,81 @@ struct HypewriterWorld {
     primary_font_name: Option<String>,
 }
 
+// 앱에 동봉한 기본 본문 글꼴. 화면(@font-face)과 같은 Pretendard를 PDF에도 보장한다.
+// Typst 0.12는 woff2를 못 읽으므로 정적 OTF를 내장한다.
+const BUNDLED_FONT_FAMILY: &str = "Pretendard";
+static BUNDLED_FONTS: &[&[u8]] = &[
+    include_bytes!("../fonts/Pretendard-Regular.otf"),
+    include_bytes!("../fonts/Pretendard-Bold.otf"),
+];
+
 impl HypewriterWorld {
-    fn new(content: String, font_path: Option<&str>) -> Self {
-        let (fonts, primary_font_name) = Self::load_fonts(font_path);
+    /// 글꼴을 한 번만 모아 World를 만든다. 본문 마크업은 `with_source`로 나중에 넣는다.
+    fn new(font_path: Option<&str>, font_family: Option<&str>) -> Self {
+        let (fonts, loaded_name) = Self::load_fonts(font_path);
         let book = FontBook::from_fonts(&fonts);
-        
+
+        // 우선순위: 경로로 직접 읽은 글꼴의 실제 이름 → 사용자가 고른 이름 → 내장 Pretendard
+        let primary_font_name = loaded_name.or_else(|| {
+            font_family
+                .map(str::trim)
+                .filter(|f| !f.is_empty())
+                .map(str::to_string)
+        });
+
         Self {
             library: LazyHash::new(Library::builder().build()),
             book: LazyHash::new(book),
-            source: Source::detached(content),
+            source: Source::detached(String::new()),
             fonts,
             primary_font_name,
         }
     }
-    
+
+    fn with_source(mut self, content: String) -> Self {
+        self.source = Source::detached(content);
+        self
+    }
+
+    fn push_font_file(fonts: &mut Vec<Font>, path: &Path) {
+        if let Ok(data) = fs::read(path) {
+            fonts.extend(Font::iter(Bytes::from(data)));
+        }
+    }
+
+    /// 글꼴 디렉터리를 하위 폴더까지 훑는다. 리눅스는 /usr/share/fonts/noto-cjk/,
+    /// ~/.local/share/fonts/<vendor>/<family>/ 처럼 거의 모든 글꼴이 하위 폴더에 있다.
+    fn collect_font_dir(fonts: &mut Vec<Font>, dir: &Path, depth: usize) {
+        const MAX_DEPTH: usize = 8;
+        let Ok(entries) = fs::read_dir(dir) else { return };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            // 심볼릭 링크 순환을 피하려고 링크를 따라간 디렉터리는 내려가지 않는다
+            let Ok(file_type) = entry.file_type() else { continue };
+            if file_type.is_dir() {
+                if depth < MAX_DEPTH {
+                    Self::collect_font_dir(fonts, &path, depth + 1);
+                }
+                continue;
+            }
+            let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+            if ["ttf", "otf", "ttc", "otc"].iter().any(|e| ext.eq_ignore_ascii_case(e)) {
+                Self::push_font_file(fonts, &path);
+            }
+        }
+    }
+
     fn load_fonts(primary_font_path: Option<&str>) -> (Vec<Font>, Option<String>) {
         let mut fonts = Vec::new();
         let mut primary_font_name = None;
-        
+
         // 선택된 폰트를 먼저 로드
-        if let Some(path) = primary_font_path {
-            if !path.is_empty() && std::path::Path::new(path).exists() {
-                if let Ok(data) = fs::read(path) {
-                    let buffer = Bytes::from(data);
-                    for font in Font::iter(buffer) {
-                        if primary_font_name.is_none() {
-                            // 첫 번째 폰트의 이름을 저장
-                            primary_font_name = font.info().family.clone().into();
-                        }
-                        fonts.push(font);
-                    }
-                }
-            }
+        if let Some(path) = primary_font_path.filter(|p| !p.is_empty()) {
+            let before = fonts.len();
+            Self::push_font_file(&mut fonts, Path::new(path));
+            primary_font_name = fonts.get(before).map(|f| f.info().family.clone());
         }
-        
+
         // 플랫폼별 시스템 폰트 디렉토리 + 사용자 폰트 디렉토리
         let mut font_dirs: Vec<PathBuf> = Vec::new();
         #[cfg(target_os = "windows")]
@@ -104,33 +145,25 @@ impl HypewriterWorld {
         if let Some(d) = dirs::font_dir() {
             font_dirs.push(d);
         }
-        for font_dir in &font_dirs {
-            if !font_dir.exists() {
-                continue;
-            }
-            
-            if let Ok(entries) = fs::read_dir(font_dir) {
-                for entry in entries.flatten() {
-                    let path = entry.path();
-                    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-                    
-                    if ext.eq_ignore_ascii_case("ttf") || ext.eq_ignore_ascii_case("otf") || ext.eq_ignore_ascii_case("ttc") {
-                        if let Ok(data) = fs::read(&path) {
-                            let buffer = Bytes::from(data);
-                            for font in Font::iter(buffer) {
-                                fonts.push(font);
-                            }
-                        }
-                    }
-                }
-            }
+        // Windows 사용자별 설치 글꼴
+        #[cfg(target_os = "windows")]
+        if let Some(d) = dirs::data_local_dir() {
+            font_dirs.push(d.join(r"Microsoft\Windows\Fonts"));
         }
-        
+        for font_dir in &font_dirs {
+            Self::collect_font_dir(&mut fonts, font_dir, 0);
+        }
+
+        // 내장 글꼴은 맨 뒤에: 시스템에 같은 이름이 설치돼 있으면 그쪽이 먼저 잡힌다
+        for data in BUNDLED_FONTS {
+            fonts.extend(Font::iter(Bytes::from_static(data)));
+        }
+
         (fonts, primary_font_name)
     }
-    
+
     fn get_primary_font_name(&self) -> &str {
-        self.primary_font_name.as_deref().unwrap_or("Malgun Gothic")
+        self.primary_font_name.as_deref().unwrap_or(BUNDLED_FONT_FAMILY)
     }
 }
 
@@ -324,7 +357,7 @@ fn generate_typst_markup(content: &ExportContent, primary_font: &str) -> String 
 )
 
 #set text(
-  font: ("{}", "Malgun Gothic", "NanumGothic", "Noto Sans CJK KR"),
+  font: ("{}", "Pretendard", "Malgun Gothic", "NanumGothic", "Noto Sans CJK KR"),
   size: 11pt,
   lang: "ko",
 )
@@ -405,18 +438,11 @@ fn generate_typst_markup(content: &ExportContent, primary_font: &str) -> String 
 
 #[tauri::command]
 fn export_to_pdf(path: String, content: ExportContent) -> Result<(), String> {
-    // 폰트 경로를 전달하여 World 생성
-    let font_path = content.font_path.as_deref();
-    let world = HypewriterWorld::new(String::new(), font_path);
-    
-    // 실제 로드된 폰트 이름 가져오기
+    // 글꼴을 한 번만 모은 뒤, 실제로 잡힌 본문 글꼴 이름으로 마크업을 만든다
+    let world = HypewriterWorld::new(content.font_path.as_deref(), content.font_family.as_deref());
     let primary_font = world.get_primary_font_name().to_string();
-    
-    // Typst 마크업 생성
     let typst_content = generate_typst_markup(&content, &primary_font);
-    
-    // 새 World 생성 (마크업 포함)
-    let world = HypewriterWorld::new(typst_content, font_path);
+    let world = world.with_source(typst_content);
     
     let result = typst::compile(&world);
     
