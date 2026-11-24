@@ -8,7 +8,7 @@ const emit = defineEmits<{
 }>()
 
 const settingsStore = useSettingsStore()
-const { availableFonts, isLoadingFonts, editorFont, editorFontSize, editorWidth, editorLineHeight, editorLetterSpacing, useFirstLineIndent, firstLineIndent } = storeToRefs(settingsStore)
+const { availableFonts, isLoadingFonts, editorFont, editorFontSize, editorWidth, editorLineHeight, editorLetterSpacing, useFirstLineIndent, firstLineIndent, wordBreak } = storeToRefs(settingsStore)
 
 const searchQuery = ref('')
 const activeTab = ref<'font' | 'paragraph'>('font')
@@ -186,6 +186,25 @@ onMounted(() => {
           >
             <p>첫줄 들여쓰기 미리보기입니다. 이 문단은 설정된 값만큼 첫 번째 줄이 들여쓰기됩니다.</p>
             <p>두 번째 문단입니다. 각 문단의 첫 줄마다 들여쓰기가 적용됩니다.</p>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <h4>줄바꿈</h4>
+          <div class="setting-row-check">
+            <label class="checkbox-label">
+              <input type="radio" value="normal" v-model="wordBreak" />
+              <span>글자 단위 (원고지·워드프로세서식)</span>
+            </label>
+          </div>
+          <div class="setting-row-check">
+            <label class="checkbox-label">
+              <input type="radio" value="keep-all" v-model="wordBreak" />
+              <span>어절 단위 (띄어쓰기에서만)</span>
+            </label>
+          </div>
+          <div class="setting-preview word-break-preview" :style="{ wordBreak }">
+            그는 오래도록 창밖을 바라보다가 마침내 대답했다. 아무래도 돌아갈 수는 없겠다고.
           </div>
         </div>
       </div>
@@ -438,6 +457,10 @@ onMounted(() => {
   border-radius: 6px;
   font-size: 0.85rem;
   color: var(--text-secondary);
+}
+
+.word-break-preview {
+  width: 14em;
 }
 
 .setting-preview p {
