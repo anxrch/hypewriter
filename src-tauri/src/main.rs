@@ -47,9 +47,35 @@ fn disable_dmabuf_renderer_in_appimage() {
     }
 }
 
+/// linuxdeploy GTK 플러그인의 AppImage 훅은 `GDK_BACKEND=x11`을 무조건 export한다(tauri#8541 대응).
+/// 그런데 Wayland 세션에서 XWayland로 돌리면 타자기 모드를 끄는 순간처럼 화면을 크게 다시 그릴 때
+/// 앱이 아무 메시지 없이 종료된다(NVIDIA에서 확인). Wayland 세션이면 이 강제를 걷어
+/// GTK가 기본 순서(wayland → x11)로 고르게 한다. 그래야 IME 보정(prefer_wayland_im_module)도 적용된다.
+/// 사용자가 백엔드를 직접 고르려면 `HYPEWRITER_GDK_BACKEND`를 쓴다(훅이 GDK_BACKEND를 덮어쓰므로).
+#[cfg(target_os = "linux")]
+fn undo_appimage_x11_force() {
+    use std::env;
+
+    if env::var_os("APPIMAGE").is_none() {
+        return;
+    }
+    if let Some(backend) = env::var_os("HYPEWRITER_GDK_BACKEND") {
+        env::set_var("GDK_BACKEND", backend);
+        return;
+    }
+    if env::var_os("WAYLAND_DISPLAY").is_none() {
+        return;
+    }
+    if env::var("GDK_BACKEND").map(|b| b.trim() == "x11").unwrap_or(false) {
+        env::remove_var("GDK_BACKEND");
+    }
+}
+
 fn main() {
     #[cfg(target_os = "linux")]
     {
+        // IME 보정이 GDK_BACKEND를 보고 판단하므로 이걸 먼저 한다
+        undo_appimage_x11_force();
         prefer_wayland_im_module();
         disable_dmabuf_renderer_in_appimage();
     }
