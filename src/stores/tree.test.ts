@@ -120,3 +120,9 @@ test('normalizeTree: 중복된 폴더 id는 새 id로 바꾸고 내용은 유지
   // 이동해도 글이 사라지지 않음
   expect(flattenChapterIds(moveNode(r, r[1].id, { kind: 'before', refId: 'F' }))).toEqual(['b', 'a'])
 })
+
+test('moveNode: 제자리 이동은 같은 트리 객체를 돌려줌', () => {
+  expect(moveNode(T, 'b', { kind: 'before', refId: 'G' })).toBe(T)
+  expect(moveNode(T, 'G', { kind: 'inside', folderId: 'F' })).toBe(T)
+  expect(moveNode(T, 'd', { kind: 'root-end' })).toBe(T)
+})

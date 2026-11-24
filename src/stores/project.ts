@@ -217,8 +217,11 @@ export const useProjectStore = defineStore('project', () => {
   function moveItem(nodeId: string, target: DropTarget) {
     if (!currentProject.value) return
     const before = currentProject.value.tree
-    const next = moveNode(before, nodeId, target)
-    if (next !== before) setTree(next)
+    let next = moveNode(before, nodeId, target)
+    if (next === before) return
+    // 접힌 폴더에 넣으면 펼쳐서 옮긴 항목이 보이게 한다
+    if (target.kind === 'inside') next = updateFolder(next, target.folderId, { collapsed: false })
+    setTree(next)
   }
 
   function deleteChapter(id: string) {

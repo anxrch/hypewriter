@@ -141,3 +141,19 @@ test('saveProject writes version 1.1 with tree', async () => {
   expect(json.version).toBe('1.1')
   expect(json.tree).toEqual([{ type: 'chapter', id: 'a' }])
 })
+
+test('moveItem to the same spot does not mark dirty', () => {
+  store.currentProject = makeProject([ch('a'), ch('b')])
+  store.isDirty = false
+  store.moveItem('a', { kind: 'before', refId: 'b' })
+  expect(store.isDirty).toBe(false)
+})
+
+test('moveItem into a collapsed folder expands it', () => {
+  store.currentProject = makeProject([ch('a')], [
+    { type: 'chapter', id: 'a' },
+    { type: 'folder', id: 'F', name: 'F', collapsed: true, children: [] }
+  ])
+  store.moveItem('a', { kind: 'inside', folderId: 'F' })
+  expect(store.currentProject!.tree[0]).toMatchObject({ id: 'F', collapsed: false })
+})

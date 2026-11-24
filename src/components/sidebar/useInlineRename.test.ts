@@ -28,3 +28,14 @@ test('Enter during composition (keyCode 229) does not commit', () => {
   expect(onCommit).not.toHaveBeenCalled()
   expect(r.editingId.value).toBe('f1')
 })
+
+test('cancelRename clears a pending rename from outside', async () => {
+  const { cancelRename, startRename } = await import('./useInlineRename')
+  const onCommit = vi.fn()
+  const r = useInlineRename(onCommit)
+  startRename('f1', 'a')
+  cancelRename()
+  expect(r.editingId.value).toBeNull()
+  r.finish()
+  expect(onCommit).not.toHaveBeenCalled()
+})

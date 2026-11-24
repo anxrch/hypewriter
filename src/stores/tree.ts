@@ -141,7 +141,9 @@ export function moveNode(tree: TreeNode[], nodeId: string, target: DropTarget): 
   if (!canMove(tree, nodeId, target)) return tree
   if (target.kind !== 'root-end' && target.kind !== 'inside' && target.refId === nodeId) return tree
   const node = findNode(tree, nodeId)!
-  return insertNode(removeNode(tree, nodeId), node, target)
+  const next = insertNode(removeNode(tree, nodeId), node, target)
+  // 제자리 이동이면 원래 트리를 그대로 돌려줘서 호출 쪽이 "변경 없음"을 알 수 있게 한다
+  return JSON.stringify(next) === JSON.stringify(tree) ? tree : next
 }
 
 export function dissolveFolder(tree: TreeNode[], folderId: string): TreeNode[] {

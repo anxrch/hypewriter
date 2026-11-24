@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { watch } from 'vue'
 import { useProjectStore } from '@/stores/project'
 import { useSettingsStore } from '@/stores/settings'
 import {
@@ -14,10 +15,13 @@ import {
 } from 'lucide-vue-next'
 import ChapterListView from './ChapterListView.vue'
 import FolderTreeView from './FolderTreeView.vue'
-import { startRename } from './useInlineRename'
+import { startRename, cancelRename } from './useInlineRename'
 
 const projectStore = useProjectStore()
 const settingsStore = useSettingsStore()
+
+// 보기를 바꾸면 진행 중이던 이름 편집은 버린다 (안 보이는 행에 편집 상태가 남지 않게)
+watch(() => settingsStore.sidebarView, cancelRename)
 
 function newFolder() {
   const name = '새 폴더'

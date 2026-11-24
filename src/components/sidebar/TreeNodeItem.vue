@@ -6,6 +6,7 @@ import type { TreeNode } from '@/stores/tree'
 import ChapterRow from './ChapterRow.vue'
 import { useInlineRename, vFocusSelect } from './useInlineRename'
 import { useTreeDrag } from './useTreeDrag'
+import { useClickOrDoubleClick } from './useClickOrDoubleClick'
 
 const props = defineProps<{
   node: TreeNode
@@ -22,6 +23,11 @@ const chapter = computed(() =>
 )
 
 const drag = useTreeDrag('tree')
+
+const folderClick = useClickOrDoubleClick(
+  () => projectStore.toggleFolder(props.node.id),
+  () => { if (props.node.type === 'folder') rename.start(props.node.id, props.node.name) }
+)
 
 const indent = computed(() => ({ paddingLeft: `calc(0.75rem + ${props.depth}rem)` }))
 
@@ -48,10 +54,17 @@ function addChapterHere() {
       @dragleave="drag.onDragLeave"
       @drop="drag.onDrop"
       @dragend="drag.onDragEnd"
-      @click="projectStore.toggleFolder(node.id)"
-      @dblclick.stop="rename.start(node.id, node.name)"
+      @click="folderClick.onClick"
+      @dblclick.stop="folderClick.onDoubleClick"
     >
-      <ChevronRight :size="14" class="chevron" :class="{ open: !node.collapsed }" />
+      <!-- 화살표는 더블클릭과 상관없으니 바로 접고 편다 -->
+      <ChevronRight
+        :size="14"
+        class="chevron"
+        :class="{ open: !node.collapsed }"
+        @click.stop="projectStore.toggleFolder(node.id)"
+        @dblclick.stop
+      />
       <FolderOpen v-if="!node.collapsed" :size="15" class="folder-icon" />
       <Folder v-else :size="15" class="folder-icon" />
       <input
