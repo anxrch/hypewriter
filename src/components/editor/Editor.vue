@@ -8,6 +8,7 @@ import Underline from '@tiptap/extension-underline'
 import TextAlign from '@tiptap/extension-text-align'
 import { Indent } from './extensions/Indent'
 import { LineHighlight } from './extensions/LineHighlight'
+import { CustomCaret } from './extensions/CustomCaret'
 import { CustomHorizontalRule } from './extensions/CustomHorizontalRule'
 import { CustomBlockquote } from './extensions/CustomBlockquote'
 import { useProjectStore } from '@/stores/project'
@@ -52,6 +53,7 @@ const editor = useEditor({
     }),
     Indent,
     LineHighlight,
+    CustomCaret,
     CustomHorizontalRule,
     CustomBlockquote
   ],
@@ -559,6 +561,31 @@ onUnmounted(() => {
 
 [data-theme="dark"] .line-highlight-enabled :deep(.line-highlight) {
   background: rgba(255, 255, 255, 0.05);
+}
+
+/* 커서 — 기본 커서는 숨기고 CustomCaret.ts가 그린 막대를 쓴다 (WebKit이 줄 사이 여백까지 늘려 그려서) */
+:deep(.prose-editor) {
+  caret-color: transparent;
+}
+
+:deep(.custom-caret) {
+  display: none;
+  position: absolute;
+  z-index: 2;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  pointer-events: none;
+  background: var(--text-primary);
+}
+
+:deep(.custom-caret.blink) {
+  animation: caret-blink 1.06s step-end 0.5s infinite;
+}
+
+@keyframes caret-blink {
+  0% { opacity: 0; }
+  50% { opacity: 1; }
 }
 
 /* Footnote marker style */
