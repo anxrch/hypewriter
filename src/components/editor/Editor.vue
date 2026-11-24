@@ -530,15 +530,31 @@ onUnmounted(() => {
   height: 0;
 }
 
-/* Line highlight */
-.line-highlight-enabled :deep(.line-highlight) {
-  background: var(--line-highlight-bg, rgba(0, 0, 0, 0.04));
+/* Line highlight — 커서가 있는 시각적 한 줄만 (LineHighlight.ts가 위치 계산) */
+.editor-content > :deep(div) {
+  position: relative;
+}
+
+:deep(.prose-editor) {
+  position: relative;
+  z-index: 1;
+}
+
+:deep(.line-highlight) {
+  display: none;
+  position: absolute;
+  z-index: 0;
+  box-sizing: content-box;
   margin-left: -1rem;
-  margin-right: -1rem;
-  padding-left: 1rem;
-  padding-right: 1rem;
+  padding: 0 1rem;
   border-radius: 4px;
-  transition: background 0.15s;
+  pointer-events: none;
+  background: var(--line-highlight-bg, rgba(0, 0, 0, 0.04));
+  transition: top 0.08s ease-out, height 0.08s ease-out;
+}
+
+.line-highlight-enabled :deep(.line-highlight) {
+  display: block;
 }
 
 [data-theme="dark"] .line-highlight-enabled :deep(.line-highlight) {
