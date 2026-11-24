@@ -31,9 +31,28 @@ fn prefer_wayland_im_module() {
     }
 }
 
+/// AppImage는 빌드 머신(ubuntu-22.04)의 WebKitGTK·Mesa를 묶어 가는데, 이 낡은 GBM이 최신 NVIDIA
+/// 드라이버와 맞지 않아 DMA-BUF 렌더러가 버퍼를 못 만든다("Failed to create GBM buffer").
+/// 그러면 창은 뜨지만 내용이 하나도 그려지지 않는다. AppImage로 실행될 때만 그 렌더러를 끈다.
+/// 사용자가 직접 값을 정했으면 그대로 둔다.
+#[cfg(target_os = "linux")]
+fn disable_dmabuf_renderer_in_appimage() {
+    use std::env;
+
+    if env::var_os("APPIMAGE").is_none() {
+        return;
+    }
+    if env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+        env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
+}
+
 fn main() {
     #[cfg(target_os = "linux")]
-    prefer_wayland_im_module();
+    {
+        prefer_wayland_im_module();
+        disable_dmabuf_renderer_in_appimage();
+    }
 
     hypewriter_lib::run()
 }
