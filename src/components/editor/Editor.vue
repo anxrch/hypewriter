@@ -569,7 +569,6 @@ onUnmounted(() => {
 }
 
 :deep(.custom-caret) {
-  display: none;
   position: absolute;
   z-index: 2;
   width: 2px;

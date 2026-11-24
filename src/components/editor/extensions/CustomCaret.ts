@@ -31,6 +31,7 @@ export const CustomCaret = Extension.create({
           const caret = document.createElement('div')
           caret.className = className
           caret.setAttribute('aria-hidden', 'true')
+          caret.style.display = 'none'
           host?.append(caret)
 
           let frame = 0
@@ -127,7 +128,7 @@ function position(view: EditorView, caret: HTMLElement) {
   const box = caretBox(rect, fontSize)
   const hostRect = host.getBoundingClientRect()
 
-  caret.style.display = ''
+  caret.style.display = 'block'
   caret.style.top = `${box.top - hostRect.top}px`
   caret.style.left = `${rect.left - hostRect.left}px`
   caret.style.height = `${box.height}px`
