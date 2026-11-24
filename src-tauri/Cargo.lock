@@ -2019,6 +2019,7 @@ dependencies = [
  "dirs 5.0.1",
  "docx-rs",
  "font-kit",
+ "gtk",
  "serde",
  "serde_json",
  "tauri",

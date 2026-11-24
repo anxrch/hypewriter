@@ -29,3 +29,7 @@ typst-pdf = "0.12"
 comemo = "0.4"
 chrono = "0.4"
 dirs = "5"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# Tauri가 이미 쓰는 버전과 맞춘다(AppImage 아이콘 테마 지정용)
+gtk = "0.18"

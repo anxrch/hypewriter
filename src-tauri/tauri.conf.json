@@ -51,6 +51,19 @@
       },
       "rpm": {
         "depends": ["gtk3", "webkit2gtk4.1", "libayatana-appindicator-gtk3"]
+      },
+      "appimage": {
+        "files": {
+          "/usr/share/icons/HypewriterAppImage/index.theme": "appimage/icons/index.theme",
+          "/usr/share/icons/HypewriterAppImage/16x16/actions/window-minimize-symbolic.symbolic.png": "appimage/icons/16/window-minimize-symbolic.symbolic.png",
+          "/usr/share/icons/HypewriterAppImage/16x16@2/actions/window-minimize-symbolic.symbolic.png": "appimage/icons/32/window-minimize-symbolic.symbolic.png",
+          "/usr/share/icons/HypewriterAppImage/16x16/actions/window-maximize-symbolic.symbolic.png": "appimage/icons/16/window-maximize-symbolic.symbolic.png",
+          "/usr/share/icons/HypewriterAppImage/16x16@2/actions/window-maximize-symbolic.symbolic.png": "appimage/icons/32/window-maximize-symbolic.symbolic.png",
+          "/usr/share/icons/HypewriterAppImage/16x16/actions/window-restore-symbolic.symbolic.png": "appimage/icons/16/window-restore-symbolic.symbolic.png",
+          "/usr/share/icons/HypewriterAppImage/16x16@2/actions/window-restore-symbolic.symbolic.png": "appimage/icons/32/window-restore-symbolic.symbolic.png",
+          "/usr/share/icons/HypewriterAppImage/16x16/actions/window-close-symbolic.symbolic.png": "appimage/icons/16/window-close-symbolic.symbolic.png",
+          "/usr/share/icons/HypewriterAppImage/16x16@2/actions/window-close-symbolic.symbolic.png": "appimage/icons/32/window-close-symbolic.symbolic.png"
+        }
       }
     }
   }

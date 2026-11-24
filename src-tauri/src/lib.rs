@@ -466,11 +466,33 @@ fn export_to_pdf(path: String, content: ExportContent) -> Result<(), String> {
 
 // ============ Tauri Entry Point ============
 
+/// AppImage는 ubuntu-22.04의 옛 GTK·librsvg를 묶어 가는데, 이것들이 사용자 시스템의 최신 아이콘 테마와
+/// 맞지 않아 창 제목줄 버튼이 깨진다(breeze는 대각선 잔상, Adwaita 51은 아이콘을 못 찾음).
+/// 옛 GTK는 symbolic SVG를 그릴 때 잔상이 생기므로, 창 버튼 아이콘만 symbolic PNG로 든 작은 테마
+/// (HypewriterAppImage, 나머지는 Adwaita·hicolor에서 물려받음)를 넣고 AppImage로 실행될 때 그 테마를 쓴다.
+/// 테마 파일은 tauri.conf.json의 bundle.linux.appimage.files로 들어가고, scripts/appimage-icons.sh로 만든다.
+#[cfg(target_os = "linux")]
+fn use_bundled_icon_theme_in_appimage() {
+    use gtk::prelude::GtkSettingsExt;
+
+    if std::env::var_os("APPIMAGE").is_none() {
+        return;
+    }
+    if let Some(settings) = gtk::Settings::default() {
+        settings.set_gtk_icon_theme_name(Some("HypewriterAppImage"));
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
+        .setup(|_app| {
+            #[cfg(target_os = "linux")]
+            use_bundled_icon_theme_in_appimage();
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             get_system_fonts,
             read_project_file,
