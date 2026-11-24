@@ -21,6 +21,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const spellCheck = ref(true)
   const availableFonts = ref<FontInfo[]>([])
   const isLoadingFonts = ref(false)
+  const sidebarView = ref<'list' | 'tree'>('tree')
 
   // Editor settings
   const editorFont = ref('Pretendard')
@@ -50,6 +51,7 @@ export const useSettingsStore = defineStore('settings', () => {
       firstLineIndent.value = parsed.firstLineIndent ?? 1
       useFirstLineIndent.value = parsed.useFirstLineIndent ?? true
       wordBreak.value = parsed.wordBreak === 'keep-all' ? 'keep-all' : 'normal'
+      sidebarView.value = parsed.sidebarView === 'list' ? 'list' : 'tree'
     }
   }
 
@@ -67,14 +69,15 @@ export const useSettingsStore = defineStore('settings', () => {
       editorWidth: editorWidth.value,
       firstLineIndent: firstLineIndent.value,
       useFirstLineIndent: useFirstLineIndent.value,
-      wordBreak: wordBreak.value
+      wordBreak: wordBreak.value,
+      sidebarView: sidebarView.value
     }))
   }
 
   watch([
     theme, typewriterMode, lineHighlight, spellCheck, editorFont, editorFontPath,
     editorFontSize, editorLineHeight, editorLetterSpacing, editorWidth, 
-    firstLineIndent, useFirstLineIndent, wordBreak
+    firstLineIndent, useFirstLineIndent, wordBreak, sidebarView
   ], () => {
     saveSettings()
   })
@@ -82,6 +85,10 @@ export const useSettingsStore = defineStore('settings', () => {
   watch(theme, (newTheme) => {
     document.documentElement.setAttribute('data-theme', newTheme)
   })
+
+  function toggleSidebarView() {
+    sidebarView.value = sidebarView.value === 'tree' ? 'list' : 'tree'
+  }
 
   function toggleTheme() {
     theme.value = theme.value === 'light' ? 'dark' : 'light'
@@ -180,6 +187,8 @@ export const useSettingsStore = defineStore('settings', () => {
     spellCheck,
     availableFonts,
     isLoadingFonts,
+    sidebarView,
+    toggleSidebarView,
     editorFont,
     editorFontPath,
     editorFontSize,
